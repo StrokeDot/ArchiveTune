@@ -115,6 +115,7 @@ object SpotifyEchoResolver {
         trackId: String,
         durationMs: Long?,
     ): ResolvedEchoStream? {
+        if (!SpotifyPlayPlayRecordDecoder.OBFUSCATED_KEY_SUPPORTED) return null
         val trackUri = if (trackId.startsWith("spotify:track:")) trackId else "spotify:track:$trackId"
         trackCache[trackUri]?.let { cached ->
             if (System.currentTimeMillis() - cached.resolvedAtMs < CACHE_TTL_MS) return cached

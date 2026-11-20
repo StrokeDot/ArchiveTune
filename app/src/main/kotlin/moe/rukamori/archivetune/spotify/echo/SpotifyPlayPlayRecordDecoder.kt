@@ -13,11 +13,12 @@
 package moe.rukamori.archivetune.spotify.echo
 
 object SpotifyPlayPlayRecordDecoder {
+    const val OBFUSCATED_KEY_SUPPORTED = false
     private const val U32_MASK = 0xffffffffL
 
     fun decodeObfuscatedKey(obfuscated: ByteArray): ByteArray {
         require(obfuscated.size == 16) { "PlayPlay obfuscated key must be 16 bytes" }
-        return SpotifyPlayPlayPipeline().decode(obfuscated)
+        throw UnsupportedOperationException("Spotify Echo is unavailable in this build")
     }
 
     fun parseObfuscatedKey(body: ByteArray): ByteArray {
