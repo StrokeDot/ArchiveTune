@@ -2,6 +2,15 @@
 
 `StrokeDot/ArchiveTune` develops on `personal/vinyl`, based on upstream `v18.0`. For this fork, use `vinyl-apk.yml` for ARM64 builds. Keep the application ID `com.strokedot.archivetune.vinyl`, the dedicated release signing key, and `StrokeDot/ArchiveTune` as the updater repository. The YouTube core is pinned to `StrokeDot/core` for Brand Account fixes. The upstream notes below apply to the inherited code and describe the original branches and release workflows.
 
+## Shipping Vinyl updates
+
+Publish each user-facing APK update to [StrokeDot/ArchiveTune Releases](https://github.com/StrokeDot/ArchiveTune/releases) so installed copies can update in the app.
+
+1. Increase both `baseVersionName` and `baseVersionCode`, then build the ARM64 GMS mobile APK from `personal/vinyl`.
+2. Sign with the existing ArchiveTune Vinyl release key and verify the package ID, version, and signing certificate. Keep the key and credentials on the owner's PC.
+3. Publish a stable `v<version>` release from the exact build commit. Attach the signed APK as `app-gms-mobile-arm64-release.apk` so the updater can find it.
+4. Confirm that the public GitHub releases feed lists the tag and its uploaded APK. Compare the published asset digest with the verified local APK.
+
 Active development on `dev`, tracking `4nx3b/ArchiveTune@dev`. Any agent working
 here must preserve the invariants below.
 
