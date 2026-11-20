@@ -96,7 +96,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-    applicationId = "moe.rukamori.archivetune"
+    applicationId = "com.strokedot.archivetune.vinyl"
         minSdk = 26
         targetSdk = 37
 

@@ -5741,3 +5741,16 @@ Work Log:
 
 Stage Summary:
 - Task 126 complete on dev: all six reports fixed at the root. CI ALL GREEN (8/8) at 061ebaaf7; canary N202610141420 (17.0.6778-061ebaaf7). On-device verification pending user testing.
+
+---
+Task ID: Vinyl 1
+Agent: Codex
+
+Task: Prepare the first side-by-side ARM64 release build for ArchiveTune Vinyl.
+
+Work Log:
+- Set the fork application ID and launcher label. Route the updater to StrokeDot releases.
+- Add a branch-scoped Actions build for the unsigned ARM64 release. Keep release signing on the owner's PC.
+
+Stage Summary:
+- The workflow produces an unsigned APK for local signing and device verification.
