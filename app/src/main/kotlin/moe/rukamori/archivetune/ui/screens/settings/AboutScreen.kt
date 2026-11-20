@@ -85,7 +85,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -1152,12 +1151,9 @@ private fun SurfaceAppIcon(
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {
-        val iconTint = MaterialTheme.colorScheme.onPrimaryContainer
-        val iconColorFilter = remember(iconTint) { ColorFilter.tint(iconTint) }
         Image(
-            painter = painterResource(R.drawable.about_splash),
+            painter = painterResource(R.drawable.app_icon_small),
             contentDescription = null,
-            colorFilter = iconColorFilter,
             modifier =
                 Modifier
                     .padding(AboutSpacing.sm)

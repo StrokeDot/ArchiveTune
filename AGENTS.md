@@ -1,6 +1,6 @@
 # AGENTS.md — ArchiveTune Vinyl
 
-`StrokeDot/ArchiveTune` develops on `personal/vinyl`, based on upstream `v18.0`. For this fork, use `vinyl-apk.yml` for ARM64 builds. Keep the application ID `com.strokedot.archivetune.vinyl`, the dedicated release signing key, and `StrokeDot/ArchiveTune` as the updater repository. The upstream notes below apply to the inherited code and describe the original branches and release workflows.
+`StrokeDot/ArchiveTune` develops on `personal/vinyl`, based on upstream `v18.0`. For this fork, use `vinyl-apk.yml` for ARM64 builds. Keep the application ID `com.strokedot.archivetune.vinyl`, the dedicated release signing key, and `StrokeDot/ArchiveTune` as the updater repository. The YouTube core is pinned to `StrokeDot/core` for Brand Account fixes. The upstream notes below apply to the inherited code and describe the original branches and release workflows.
 
 Active development on `dev`, tracking `4nx3b/ArchiveTune@dev`. Any agent working
 here must preserve the invariants below.

@@ -73,7 +73,6 @@ import moe.rukamori.archivetune.ui.screens.settings.ChangelogScreen
 import moe.rukamori.archivetune.ui.screens.settings.ContentSettings
 import moe.rukamori.archivetune.ui.screens.settings.CustomizeBackground
 import moe.rukamori.archivetune.ui.screens.settings.DebugSettings
-import moe.rukamori.archivetune.ui.screens.settings.DiscordSettings
 import moe.rukamori.archivetune.ui.screens.settings.ExportDownloadedSongsScreen
 import moe.rukamori.archivetune.ui.screens.settings.HiddenPlaylistsScreen
 import moe.rukamori.archivetune.ui.screens.settings.IconScreen
@@ -618,12 +617,6 @@ fun NavGraphBuilder.navigationBuilder(
         BackupAndRestore(navController, scrollTo = it.savedStateHandle["scrollTo"])
     }
     composable(
-        route = "settings/discord?scrollTo={scrollTo}",
-        arguments = listOf(navArgument("scrollTo") { type = NavType.StringType; nullable = true; defaultValue = null }),
-    ) {
-        DiscordSettings(navController, it.savedStateHandle["scrollTo"])
-    }
-    composable(
         route = "settings/integration?scrollTo={scrollTo}",
         arguments = listOf(navArgument("scrollTo") { type = NavType.StringType; nullable = true; defaultValue = null }),
     ) {
@@ -718,13 +711,6 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("lastfm_dashboard") {
         LastFmDashboardScreen(navController)
-    }
-    composable(
-        route = "settings/discord/experimental?scrollTo={scrollTo}",
-        arguments = listOf(navArgument("scrollTo") { type = NavType.StringType; nullable = true; defaultValue = null }),
-    ) {
-        moe.rukamori.archivetune.ui.screens.settings
-            .DiscordExperimental(navController, scrollTo = it.savedStateHandle["scrollTo"])
     }
     composable("settings/misc") {
         DebugSettings(navController)

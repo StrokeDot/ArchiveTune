@@ -240,8 +240,6 @@ import moe.rukamori.archivetune.constants.EnableHapticFeedbackKey
 import moe.rukamori.archivetune.constants.EnablePipModeKey
 import moe.rukamori.archivetune.constants.EnableVideoPlaybackKey
 import moe.rukamori.archivetune.constants.FontPreferenceKey
-import moe.rukamori.archivetune.constants.HasPressedStarKey
-import moe.rukamori.archivetune.constants.LaunchCountKey
 import moe.rukamori.archivetune.constants.LiquidGlassEnabledKey
 import moe.rukamori.archivetune.constants.LiquidGlassNavBarEnabledKey
 import moe.rukamori.archivetune.constants.MiniPlayerBottomSpacing
@@ -262,7 +260,6 @@ import moe.rukamori.archivetune.constants.PlayerDesignStyleKey
 import moe.rukamori.archivetune.constants.NavigationBarFrostedBlurKey
 import moe.rukamori.archivetune.constants.NavigationBarTintFrostedBlurKey
 import moe.rukamori.archivetune.constants.HideStatusBarKey
-import moe.rukamori.archivetune.constants.RemindAfterKey
 import moe.rukamori.archivetune.constants.SYSTEM_DEFAULT
 import moe.rukamori.archivetune.constants.SearchSource
 import moe.rukamori.archivetune.constants.DefaultSearchSourceKey
@@ -341,7 +338,6 @@ import moe.rukamori.archivetune.ui.component.PlayerBackController
 import moe.rukamori.archivetune.ui.component.PlayerBackTarget
 import moe.rukamori.archivetune.ui.component.PredictiveStyleBackHandler
 import moe.rukamori.archivetune.ui.component.rememberPredictiveSheetBackState
-import moe.rukamori.archivetune.ui.component.StarDialog
 import moe.rukamori.archivetune.ui.component.TopSearch
 import moe.rukamori.archivetune.ui.component.SearchSourcePicker
 import moe.rukamori.archivetune.ui.component.TvNavigationRail
@@ -2198,76 +2194,6 @@ class MainActivity : ComponentActivity() {
                         } else {
                             handleIntent(intent, navController)
                         }
-                    }
-
-                    var showStarDialog by remember { mutableStateOf(false) }
-
-                    LaunchedEffect(Unit) {
-                        kotlinx.coroutines.delay(3000)
-
-                        withContext(Dispatchers.IO) {
-                            val current = dataStore[LaunchCountKey] ?: 0
-                            val newCount = current + 1
-                            dataStore.edit { prefs ->
-                                prefs[LaunchCountKey] = newCount
-                            }
-                        }
-
-                        val shouldShow =
-                            withContext(Dispatchers.IO) {
-                                val hasPressed = dataStore[HasPressedStarKey] ?: false
-                                val remindAfter = dataStore[RemindAfterKey] ?: 3
-                                !hasPressed && (dataStore[LaunchCountKey] ?: 0) >= remindAfter
-                            }
-
-                        if (shouldShow) {
-                            var waited = 0L
-                            val waitStep = 500L
-                            val maxWait = 30_000L
-                            while (bottomSheetPageState.isVisible && waited < maxWait) {
-                                delay(waitStep)
-                                waited += waitStep
-                            }
-                            showStarDialog = true
-                        }
-                    }
-
-                    if (showStarDialog) {
-                        StarDialog(
-                            onDismissRequest = { showStarDialog = false },
-                            onSupport = {
-                                coroutineScope.launch {
-                                    try {
-                                        withContext(Dispatchers.IO) {
-                                            dataStore.edit { prefs ->
-                                                prefs[HasPressedStarKey] = true
-                                                prefs[RemindAfterKey] = Int.MAX_VALUE
-                                            }
-                                        }
-                                    } catch (e: Exception) {
-                                        reportException(e)
-                                    } finally {
-                                        showStarDialog = false
-                                    }
-                                }
-                            },
-                            onLater = {
-                                coroutineScope.launch {
-                                    try {
-                                        val launch = withContext(Dispatchers.IO) { dataStore[LaunchCountKey] ?: 0 }
-                                        withContext(Dispatchers.IO) {
-                                            dataStore.edit { prefs ->
-                                                prefs[RemindAfterKey] = launch + 20
-                                            }
-                                        }
-                                    } catch (e: Exception) {
-                                        reportException(e)
-                                    } finally {
-                                        showStarDialog = false
-                                    }
-                                }
-                            },
-                        )
                     }
 
                     val currentTitleRes =

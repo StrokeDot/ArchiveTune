@@ -534,7 +534,6 @@ fun Thumbnail(
                                                     seekDirection = context.getString(R.string.seek_forward_dynamic, skipAmount / 1000)
                                                 }
 
-                                                playerConnection.service.forceDiscordSync("thumbnail_double_tap_skip")
 
                                                 showSeekEffect = true
                                             },
@@ -557,9 +556,9 @@ fun Thumbnail(
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         Icon(
-                                            painter = painterResource(R.drawable.about_splash),
+                                            painter = painterResource(R.drawable.app_icon_small),
                                             contentDescription = stringResource(R.string.hide_player_thumbnail),
-                                            tint = textBackgroundColor.copy(alpha = 0.7f),
+                                            tint = Color.Unspecified,
                                             modifier = Modifier.size(120.dp),
                                         )
                                     }

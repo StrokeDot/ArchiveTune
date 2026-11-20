@@ -48,7 +48,6 @@ import moe.rukamori.archivetune.constants.DisableBlurKey
 import moe.rukamori.archivetune.constants.DisableScreenshotKey
 import moe.rukamori.archivetune.constants.EnableVideoPlaybackKey
 import moe.rukamori.archivetune.constants.EnablePipModeKey
-import moe.rukamori.archivetune.constants.EnableDiscordRPCKey
 import moe.rukamori.archivetune.constants.EnableLastFMScrobblingKey
 import moe.rukamori.archivetune.constants.EnableTranslatorKey
 import moe.rukamori.archivetune.constants.ExternalDownloaderEnabledKey
@@ -669,21 +668,15 @@ fun buildSettingsGroups(
             key = "integration",
             icon = painterResource(R.drawable.auto_awesome),
             title = stringResource(R.string.integration),
-            subtitle = stringResource(R.string.settings_integration_subtitle),
+            subtitle = stringResource(R.string.vinyl_settings_integration_subtitle),
             accentColor = SettingsIconPalette.Integration,
-            keywords = listOf("integration", "lastfm", "last.fm", "libre.fm", "scrobble", "scrobbling", "discord", "listenbrainz", "spotify", "apple music"),
+            keywords = listOf("integration", "lastfm", "last.fm", "libre.fm", "scrobble", "scrobbling", "listenbrainz", "spotify", "apple music"),
             onClick = { navController.navigate("settings/integration") },
             children = listOf(
                 SettingsChild("Last.fm scrobbling", "lastfm_scrobbling", listOf("lastfm", "last.fm", "libre.fm", "scrobble", "scrobbling", "listens")) { SearchResultSwitch(EnableLastFMScrobblingKey, false) },
                 SettingsChild("Last.fm account", "lastfm_account", listOf("lastfm account", "lastfm login", "lastfm session", "lastfm username")),
                 SettingsChild("Last.fm options", "lastfm_options", listOf("lastfm options", "lastfm settings", "scrobble toggle", "now playing")),
                 SettingsChild("Last.fm scrobbling configuration", "lastfm_scrobbling_config", listOf("scrobble config", "scrobble configuration", "scrobble threshold", "scrobble percentage")),
-                SettingsChild("Discord rich presence", "discord_presence", listOf("discord", "rich presence", "rpc", "status", "now playing")) { SearchResultSwitch(EnableDiscordRPCKey, false) },
-                SettingsChild("Discord account", "discord_account", listOf("discord account", "discord login", "discord token", "discord authorization")),
-                SettingsChild("Discord options", "discord_options", listOf("discord options", "discord refresh", "refresh discord")),
-                SettingsChild("Discord connection settings", "discord_connection", listOf("discord connection", "activity status", "platform status", "discord platform")),
-                SettingsChild("Discord activity content", "discord_activity", listOf("discord activity", "activity name", "activity details", "activity state", "activity type", "discord show when paused")),
-                SettingsChild("Discord image options", "discord_images", listOf("discord image", "large image", "large text", "discord artwork", "discord cover")),
                 SettingsChild("ListenBrainz", "listenbrainz", listOf("listenbrainz", "listen brainz", "scrobble")) { SearchResultSwitch(ListenBrainzEnabledKey, false) },
                 SettingsChild("ListenBrainz token", "listenbrainz_token", listOf("listenbrainz token", "listenbrainz api key", "listenbrainz credential")),
                 SettingsChild("Listen Together", "listen_together", listOf("listen together", "listen together settings", "room", "shared playback", "sync playback", "listen party", "group listening", "chat", "together")) { SearchResultSwitch(ListenTogetherSyncVolumeKey, false) },
@@ -713,38 +706,7 @@ fun buildSettingsGroups(
                 SettingsChild("Connect Last.fm", "lastfm_connect_button", listOf("connect lastfm", "lastfm login", "lastfm sign in")),
                 SettingsChild("Connect Libre.fm", "lastfm_connect_librefm_button", listOf("librefm", "libre.fm", "connect librefm", "librefm login")),
                 SettingsChild("Connect custom GNU FM server", "lastfm_connect_custom_button", listOf("custom scrobble server", "gnu fm", "custom lastfm server", "self hosted scrobbler")),
-                SettingsChild("Activity status", "activity_status", listOf("discord activity status", "activity status", "online status")),
-                SettingsChild("Platform", "platform_status", listOf("discord platform", "platform status", "desktop mobile status")),
-                SettingsChild("Activity name", "discord_activity_name", listOf("discord activity name", "activity name", "rpc name")),
-                SettingsChild("Activity details", "discord_activity_details", listOf("discord activity details", "activity details", "rpc details")),
-                SettingsChild("Activity state", "discord_activity_state", listOf("discord activity state", "activity state", "rpc state")),
-                SettingsChild("Activity type", "discord_activity_type", listOf("discord activity type", "activity type", "listening playing")),
-                SettingsChild("Show RPC when paused", "discord_show_when_paused", listOf("show when paused", "discord paused", "rpc paused")),
-                SettingsChild("Large image", "large_image", listOf("discord large image", "large image", "rpc large image")),
-                SettingsChild("Large text", "large_text", listOf("discord large text", "large text", "rpc large text")),
-                SettingsChild("Small image", "small_image", listOf("discord small image", "small image", "rpc small image")),
-                SettingsChild("Discord experimental options", "discord_experimental", listOf("discord experimental", "discord buttons", "rpc buttons", "discord translator")),
                 SettingsChild("Telegram bots", "telegram_bots_title", listOf("telegram bots", "telegram bot", "bot token", "music bot")),
-            ),
-        )
-
-    val discordExperimental =
-        SettingsItem(
-            key = "discord_experimental",
-            icon = painterResource(R.drawable.auto_awesome),
-            title = "Discord experimental",
-            subtitle = "Rich presence buttons and translation",
-            accentColor = SettingsIconPalette.DiscordExperimental,
-            keywords = listOf("discord experimental", "discord buttons", "rich presence buttons", "rpc buttons", "discord translator"),
-            onClick = { navController.navigate("settings/discord/experimental") },
-            hidden = true,
-            children = listOf(
-                SettingsChild("Enable translator", "enable_translator", listOf("discord translator", "enable translator", "translate presence")) { SearchResultSwitch(EnableTranslatorKey, false) },
-                SettingsChild("Target language", "target_language", listOf("target language", "translation language", "discord language")),
-                SettingsChild("Show button 1", "discord_show_button_1", listOf("discord button", "show button", "rpc button 1")),
-                SettingsChild("Button 1 URL source", "discord_activity_button_1_url", listOf("button 1 url", "discord button url", "rpc button link")),
-                SettingsChild("Show button 2", "discord_show_button_2", listOf("discord button 2", "show second button", "rpc button 2")),
-                SettingsChild("Button 2 URL source", "discord_activity_button_2_url", listOf("button 2 url", "discord second button url", "rpc button 2 link")),
             ),
         )
 
@@ -984,7 +946,6 @@ fun buildSettingsGroups(
                 SettingsChild("Force sync on account switch", "force_sync_account_switch", listOf("force sync", "account switch sync", "sync on switch")),
                 SettingsChild("Show nerd stats", "show_nerd_stats", listOf("nerd stats", "show nerd stats", "debug stats", "playback stats", "technical info")),
                 SettingsChild("Display codec on player", "display_codec_on_player", listOf("display codec", "show codec", "codec on player", "bitrate on player")),
-                SettingsChild("Show Discord debug UI", "show_discord_debug_ui", listOf("discord debug", "show debug ui", "discord debug ui")),
                 SettingsChild("Debug logs", "debug_logs", listOf("debug logs", "verbose logs", "diagnostic logs")),
             ),
         )
@@ -1109,7 +1070,6 @@ fun buildSettingsGroups(
                     androidAuto,
                     integration,
                     aiIntegration,
-                    discordExperimental,
                     tidalDetail,
                     qobuzDetail,
                     telegramDetail,

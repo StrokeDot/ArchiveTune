@@ -99,10 +99,11 @@ class SyncUtils
             }
         }
 
-        suspend fun performFullSync(authoritative: Boolean = false) =
+        suspend fun performFullSync(authoritative: Boolean = false, replacePending: Boolean = false) =
             withContext(Dispatchers.IO) {
-                val generation = if (authoritative) syncGeneration.incrementAndGet() else syncGeneration.get()
-                if (authoritative) {
+                val replacesRunningSync = authoritative || replacePending
+                val generation = if (replacesRunningSync) syncGeneration.incrementAndGet() else syncGeneration.get()
+                if (replacesRunningSync) {
                     syncMutex.lock()
                 } else if (!syncMutex.tryLock()) {
                     Timber.d("Sync already in progress, skipping")

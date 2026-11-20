@@ -77,17 +77,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import moe.rukamori.archivetune.ui.component.SettingsPageTopBar
-import moe.rukamori.archivetune.constants.DiscordAvatarUrlKey
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,7 +92,6 @@ fun IntegrationScreen(
     val (listenBrainzEnabled, onListenBrainzEnabledChange) = rememberPreference(ListenBrainzEnabledKey, false)
     val (listenBrainzToken) = rememberPreference(ListenBrainzTokenKey, "")
 
-    val (discordAvatarUrl) = rememberPreference(DiscordAvatarUrlKey, "")
 
     val (manualSourceLogin, _) = rememberPreference(ManualSourceLoginEnabledKey, false)
 
@@ -173,22 +165,6 @@ fun IntegrationScreen(
                             )
                         },
                         onClick = { navController.navigate("settings/ai_integration") },
-                    )
-                }
-            }
-
-            PreferenceGroup(
-                modifier = positions.modifierFor("discord_presence"),
-                title = stringResource(R.string.general),
-            ) {
-                item {
-                    PreferenceEntry(
-                        modifier = positions.modifierFor("discord_account"),
-                        title = { Text(stringResource(R.string.discord_integration)) },
-                        icon = { DiscordAccountIcon(avatarUrl = discordAvatarUrl) },
-                        onClick = {
-                            navController.navigate("settings/discord")
-                        },
                     )
                 }
             }
@@ -495,50 +471,6 @@ fun IntegrationScreen(
             extraContent = {
                 InfoLabel(text = stringResource(R.string.pool_api_key_help))
             },
-        )
-    }
-}
-
-@Composable
-private fun DiscordAccountIcon(avatarUrl: String) {
-    val context = LocalContext.current
-    val requestPx = with(LocalDensity.current) { 44.dp.roundToPx() }
-    val avatarRequest =
-        remember(context, avatarUrl, requestPx) {
-            avatarUrl
-                .takeIf(String::isNotBlank)
-                ?.let {
-                    ImageRequest
-                        .Builder(context)
-                        .data(it)
-                        .size(requestPx)
-                        .build()
-                }
-        }
-
-    if (avatarRequest == null) {
-        Icon(
-            painter = painterResource(R.drawable.discord),
-            contentDescription = null,
-            tint = SettingsIconPalette.DiscordExperimental,
-        )
-        return
-    }
-
-    Box(modifier = Modifier.size(44.dp)) {
-        Icon(
-            painter = painterResource(R.drawable.discord),
-            contentDescription = null,
-            tint = SettingsIconPalette.DiscordExperimental,
-        )
-        AsyncImage(
-            model = avatarRequest,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier =
-                Modifier
-                .fillMaxSize()
-                .clip(CircleShape),
         )
     }
 }

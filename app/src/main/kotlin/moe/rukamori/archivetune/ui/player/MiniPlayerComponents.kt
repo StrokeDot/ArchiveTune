@@ -454,7 +454,7 @@ private fun MiniPlayerArtwork(
                 )
             } else {
                 Image(
-                    painter = painterResource(R.drawable.about_splash),
+                    painter = painterResource(R.drawable.app_icon_small),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
                 )

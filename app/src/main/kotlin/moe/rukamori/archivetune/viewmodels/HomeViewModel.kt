@@ -27,6 +27,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.TimeoutException
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import moe.rukamori.archivetune.R
 import moe.rukamori.archivetune.aicontentfilter.FilterAiContentUseCase
 import moe.rukamori.archivetune.aicontentfilter.LoadAiContentFilterPolicyUseCase
@@ -39,6 +41,8 @@ import moe.rukamori.archivetune.constants.AccountNameKey
 import moe.rukamori.archivetune.constants.ContentCountryKey
 import moe.rukamori.archivetune.constants.ContentLanguageKey
 import moe.rukamori.archivetune.constants.DataSyncIdKey
+import moe.rukamori.archivetune.constants.SavedAccountsKey
+import moe.rukamori.archivetune.constants.SelectedYtmPlaylistsKey
 import moe.rukamori.archivetune.constants.HideExplicitKey
 import moe.rukamori.archivetune.constants.HideVideoKey
 import moe.rukamori.archivetune.constants.HiddenHomeItemsKey
@@ -69,6 +73,8 @@ import moe.rukamori.archivetune.innertube.utils.completed
 import moe.rukamori.archivetune.innertube.utils.hasYouTubeLoginCookie
 import moe.rukamori.archivetune.models.SimilarRecommendation
 import moe.rukamori.archivetune.utils.SavedAccount
+import moe.rukamori.archivetune.utils.decodeSavedAccounts
+import moe.rukamori.archivetune.utils.encodeSavedAccounts
 import moe.rukamori.archivetune.utils.SpeedDialPinType
 import moe.rukamori.archivetune.utils.SyncUtils
 import moe.rukamori.archivetune.utils.dataStore
@@ -1023,22 +1029,26 @@ class HomeViewModel
             requestReload(manual = true)
         }
 
+        private val accountSwitchMutex = Mutex()
+
         fun switchToAccount(
             account: SavedAccount,
             forceSyncOnSwitch: Boolean,
         ) {
             viewModelScope.launch(Dispatchers.IO) {
-                try {
-                    val authState = switchSavedYouTubeAccount(account).getOrThrow()
+                accountSwitchMutex.withLock {
+                    try {
+                        val authState = switchSavedYouTubeAccount(account).getOrThrow()
 
-                    if (forceSyncOnSwitch && account.ytmSync && authState.hasLoginCookie) {
-                        syncUtils.performFullSync(authoritative = true)
+                        if (account.ytmSync && authState.hasLoginCookie) {
+                            syncUtils.performFullSync(authoritative = forceSyncOnSwitch, replacePending = true)
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Timber.e(e, "Error switching account")
+                        reportException(e)
                     }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Timber.e(e, "Error switching account")
-                    reportException(e)
                 }
             }
         }
@@ -1050,33 +1060,61 @@ class HomeViewModel
             if (channel.dataSyncId.isBlank()) return
 
             viewModelScope.launch(Dispatchers.IO) {
-                try {
-                    _accountChannelsState.value = AccountChannelsState.Loading
+                accountSwitchMutex.withLock {
+                    try {
+                        val preferences = context.dataStore.data.first()
+                        val previousAuth = preferences.toPlaybackAuthState()
+                        val selectedAuth = previousAuth.copy(dataSyncId = channel.dataSyncId).normalized()
+                        if (!selectedAuth.hasLoginCookie || previousAuth.dataSyncId == selectedAuth.dataSyncId) return@withLock
 
-                    context.dataStore.edit { preferences ->
-                        preferences[DataSyncIdKey] = channel.dataSyncId
-                        preferences[AccountNameKey] = channel.name
-                        preferences[AccountChannelHandleKey] = channel.channelHandle
-                        if (channel.byline.contains("@")) {
-                            preferences[AccountEmailKey] = channel.byline
+                        _accountChannelsState.value = AccountChannelsState.Loading
+                        val accountInfo = YouTube.accountInfo(selectedAuth).getOrThrow()
+                        val expectedHandle = channel.channelHandle.trim()
+                        val actualHandle = accountInfo.channelHandle.orEmpty().trim()
+                        check(
+                            if (expectedHandle.isNotBlank() && actualHandle.isNotBlank()) {
+                                expectedHandle.trimStart('@').equals(actualHandle.trimStart('@'), ignoreCase = true)
+                            } else {
+                                channel.name.trim().equals(accountInfo.name.trim(), ignoreCase = true)
+                            },
+                        ) { "YouTube Music did not activate the selected channel" }
+
+                        context.dataStore.edit { current ->
+                            val currentAuth = current.toPlaybackAuthState()
+                            check(currentAuth.cookie == previousAuth.cookie && currentAuth.dataSyncId == previousAuth.dataSyncId) {
+                                "YouTube Music account changed during the switch"
+                            }
+                            val savedAccounts = decodeSavedAccounts(current[SavedAccountsKey].orEmpty())
+                            val savedChannel = savedAccounts.firstOrNull {
+                                it.innerTubeCookie == selectedAuth.cookie && it.dataSyncId == selectedAuth.dataSyncId
+                            }
+                            val updatedAccounts = savedAccounts.map { saved ->
+                                if (saved.innerTubeCookie == previousAuth.cookie && saved.dataSyncId == previousAuth.dataSyncId) {
+                                    saved.copy(selectedYtmPlaylists = current[SelectedYtmPlaylistsKey].orEmpty())
+                                } else {
+                                    saved
+                                }
+                            }
+                            if (updatedAccounts != savedAccounts) current[SavedAccountsKey] = encodeSavedAccounts(updatedAccounts)
+                            current[DataSyncIdKey] = selectedAuth.dataSyncId.orEmpty()
+                            current[AccountNameKey] = accountInfo.name
+                            current[AccountChannelHandleKey] = actualHandle.ifBlank { expectedHandle }
+                            accountInfo.email?.let { current[AccountEmailKey] = it }
+                            accountInfo.thumbnailUrl?.let { current[AccountImageUrlKey] = it } ?: current.remove(AccountImageUrlKey)
+                            current[SelectedYtmPlaylistsKey] = savedChannel?.selectedYtmPlaylists.orEmpty()
                         }
-                    }
 
-                    val authState =
-                        context.dataStore.data
-                            .first()
-                            .toPlaybackAuthState()
-                    YouTube.authState = authState
-
-                    if (forceSyncOnSwitch && context.dataStore.getAsync(YtmSyncKey, true) && authState.hasLoginCookie) {
-                        syncUtils.performFullSync(authoritative = true)
+                        YouTube.authState = context.dataStore.data.first().toPlaybackAuthState()
+                        if (context.dataStore.getAsync(YtmSyncKey, true)) {
+                            syncUtils.performFullSync(authoritative = forceSyncOnSwitch, replacePending = true)
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Timber.e(e, "Error switching account channel")
+                        reportException(e)
+                        _accountChannelsState.value = AccountChannelsState.Error(e.message.orEmpty())
                     }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Timber.e(e, "Error switching account channel")
-                    reportException(e)
-                    _accountChannelsState.value = AccountChannelsState.Error(e.message.orEmpty())
                 }
             }
         }

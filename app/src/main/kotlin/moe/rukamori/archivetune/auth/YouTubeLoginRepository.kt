@@ -67,19 +67,15 @@ class YouTubeLoginRepository
                             visitorData = visitorData,
                             dataSyncId = dataSyncId,
                         ).normalized()
-                    val verificationAuthState = initialAuthState.copy(dataSyncId = null)
-                    YouTube.authState = verificationAuthState
-
-                    val accountInfo = YouTube.accountInfo().getOrThrow()
-
-                    val resolvedDataSyncId = resolveRequiredDataSyncId(initialAuthState.dataSyncId)
+                    val resolvedDataSyncId = resolveRequiredDataSyncId(initialAuthState)
                     val resolvedAuthState = initialAuthState.copy(dataSyncId = resolvedDataSyncId).normalized()
-                    YouTube.authState = resolvedAuthState
+                    val accountInfo = YouTube.accountInfo(resolvedAuthState).getOrThrow()
 
                     persistLoginSession(
                         authState = resolvedAuthState,
                         accountInfo = accountInfo,
                     )
+                    YouTube.authState = context.dataStore.data.first().toPlaybackAuthState()
 
                     YouTubeLoginSession(
                         authState = resolvedAuthState,
@@ -101,11 +97,9 @@ class YouTubeLoginRepository
                             visitorData = account.visitorData,
                             dataSyncId = account.dataSyncId,
                         ).normalized()
-                    YouTube.authState = initialAuthState
-
-                    val resolvedDataSyncId = resolveRequiredDataSyncId(initialAuthState.dataSyncId)
+                    val resolvedDataSyncId = resolveRequiredDataSyncId(initialAuthState)
                     val resolvedAuthState = initialAuthState.copy(dataSyncId = resolvedDataSyncId).normalized()
-                    YouTube.authState = resolvedAuthState
+                    val accountInfo = YouTube.accountInfo(resolvedAuthState).getOrThrow()
 
                     context.dataStore.edit { preferences ->
                         preferences[InnerTubeCookieKey] = account.innerTubeCookie
@@ -114,9 +108,9 @@ class YouTubeLoginRepository
                             ?.let { preferences[VisitorDataKey] = it }
                             ?: preferences.remove(VisitorDataKey)
                         preferences[DataSyncIdKey] = resolvedDataSyncId
-                        preferences[AccountNameKey] = account.name
-                        preferences[AccountEmailKey] = account.email
-                        preferences[AccountChannelHandleKey] = account.channelHandle
+                        preferences[AccountNameKey] = accountInfo.name
+                        preferences[AccountEmailKey] = accountInfo.email ?: account.email
+                        preferences[AccountChannelHandleKey] = accountInfo.channelHandle ?: account.channelHandle
                         preferences[YtmSyncKey] = account.ytmSync
                         preferences[SelectedYtmPlaylistsKey] = account.selectedYtmPlaylists
 
@@ -137,6 +131,7 @@ class YouTubeLoginRepository
                     context.dataStore.data
                         .first()
                         .toPlaybackAuthState()
+                        .also { YouTube.authState = it }
                 }
             }
 
@@ -184,17 +179,10 @@ class YouTubeLoginRepository
             }
         }
 
-        private suspend fun resolveRequiredDataSyncId(candidate: String?): String {
-            val networkDataSyncId =
-                YouTube
-                    .accountDataSyncId()
-                    .getOrNull()
-                    .normalizeDataSyncId()
-
-            return networkDataSyncId
-                ?: candidate.normalizeDataSyncId()
+        private suspend fun resolveRequiredDataSyncId(auth: PlaybackAuthState): String =
+            auth.dataSyncId
+                ?: YouTube.accountDataSyncId(auth).getOrNull().normalizeDataSyncId()
                 ?: throw MissingYouTubeDataSyncIdException()
-        }
     }
 
 class CompleteYouTubeLoginUseCase

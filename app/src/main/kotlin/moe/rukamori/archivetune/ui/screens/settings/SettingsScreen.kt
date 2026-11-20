@@ -88,14 +88,6 @@ private val CROSS_PAGE_SCROLL_OWNERS: Map<String, String> =
         ) = keys.forEach { put("$parent/$it", owner) }
 
         own(
-            "discord", "integration",
-            "discord_options", "discord_connection", "discord_activity", "discord_images",
-            "activity_status", "platform_status", "discord_activity_name",
-            "discord_activity_details", "discord_activity_state", "discord_activity_type",
-            "discord_show_when_paused", "large_image", "large_text", "small_image",
-        )
-        own("discord_experimental", "integration", "discord_experimental")
-        own(
             "liquid_glass", "appearance",
             "liquid_glass_customisation", "glass_intensity",
             "glass_refraction_height", "glass_refraction_amount", "glass_blur_radius",
@@ -134,7 +126,6 @@ private val CROSS_PAGE_SCROLL_OWNERS: Map<String, String> =
         own("listen_together", "integration", "listen_together", "listen_together_screen")
 
         own("appearance", "lyrics", "lyrics_background_style")
-        own("discord_experimental", "lyrics", "translate_lyrics", "enable_translator")
 
         own(
             "sources", "playback",
@@ -197,8 +188,6 @@ private fun searchableSettingsRoute(parentKey: String, scrollKey: String?): Stri
             "developer_options" -> "settings/misc"
             "logcat" -> "settings/logcat"
             "about" -> "settings/about"
-            "discord" -> "settings/discord"
-            "discord_experimental" -> "settings/discord/experimental"
             "tidal" -> "settings/tidal"
             "qobuz" -> "settings/qobuz"
             "telegram" -> "settings/telegram"

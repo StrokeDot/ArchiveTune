@@ -5754,3 +5754,17 @@ Work Log:
 
 Stage Summary:
 - The workflow produces an unsigned APK for local signing and device verification.
+
+---
+Task ID: Vinyl 2
+Agent: Codex
+
+Task: Improve Vinyl branding, remove Discord from the app, and fix YouTube Music Brand Account switching.
+
+Work Log:
+- Use white launcher backgrounds and share the Vinyl mark inside the app.
+- Remove upstream community promotions and Discord settings. Disable Discord presence and unregister its sign-in callback.
+- Preserve delegated YouTube channel IDs and validate the channel before applying the selection and synchronizing its library.
+
+Stage Summary:
+- Prepare the 18.0.1 ARM64 update. Live Brand Account verification requires a signed-in device.

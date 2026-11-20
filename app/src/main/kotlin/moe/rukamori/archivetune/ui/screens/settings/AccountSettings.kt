@@ -238,7 +238,7 @@ fun AccountSettings(
 
     val saveCurrentAccount: () -> Unit = {
         val existing = decodeSavedAccounts(savedAccountsJson)
-        if (isLoggedIn && existing.none { it.innerTubeCookie == innerTubeCookie }) {
+        if (isLoggedIn && existing.none { it.innerTubeCookie == innerTubeCookie && it.dataSyncId == dataSyncId }) {
             val newAccount =
                 SavedAccount(
                     id = UUID.randomUUID().toString(),
@@ -510,7 +510,7 @@ fun AccountSettings(
             onRemoveAccount = removeAccount,
             onAddAnotherAccount = {
                 showAccountSwitcher = false
-                val isSaved = savedAccounts.accounts.any { it.innerTubeCookie == innerTubeCookie }
+                val isSaved = savedAccounts.accounts.any { it.innerTubeCookie == innerTubeCookie && it.dataSyncId == dataSyncId }
                 if (isLoggedIn && !isSaved) {
                     showUnsavedAccountDialog = true
                 } else {
@@ -811,7 +811,7 @@ private fun AccountSwitcherSheet(
                     key = { index, channel -> "${channel.dataSyncId}:${channel.name}:$index" },
                     contentType = { _, _ -> "channel" },
                 ) { index, channel ->
-                    val isActive = channel.isSelected || channel.dataSyncId == activeDataSyncId
+                    val isActive = channel.dataSyncId == activeDataSyncId || (activeDataSyncId.isBlank() && channel.isSelected)
                     SegmentedListItem(
                         selected = isActive,
                         onClick = {
@@ -891,7 +891,7 @@ private fun AccountSwitcherSheet(
                     key = { _, account -> account.id },
                     contentType = { _, _ -> "saved_account" },
                 ) { index, account ->
-                    val isActive = account.innerTubeCookie == activeInnerTubeCookie
+                    val isActive = account.innerTubeCookie == activeInnerTubeCookie && account.dataSyncId == activeDataSyncId
                     SegmentedListItem(
                         selected = isActive,
                         onClick = {

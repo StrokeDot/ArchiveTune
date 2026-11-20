@@ -193,7 +193,7 @@ class BuildOnboardingUiStateUseCase
                     OnboardingPageUiModel(
                         id = OnboardingPageId.COMMUNITY,
                         titleResId = R.string.onboarding_community_title,
-                        subtitleResId = R.string.onboarding_community_subtitle,
+                        subtitleResId = R.string.vinyl_onboarding_project_subtitle,
                         iconResId = R.drawable.star,
                     ),
                 )
@@ -227,28 +227,7 @@ class BuildOnboardingUiStateUseCase
                         titleResId = R.string.support_development_star,
                         descriptionResId = R.string.onboarding_community_github_desc,
                         iconResId = R.drawable.github,
-                        url = "https://github.com/rukamori/ArchiveTune",
-                    ),
-                    OnboardingCommunityActionUiModel(
-                        id = "discord",
-                        titleResId = R.string.onboarding_community_discord_title,
-                        descriptionResId = R.string.onboarding_community_telegram_desc,
-                        iconResId = R.drawable.discord,
-                        url = "https://discord.gg/XF2fpb9rTq",
-                    ),
-                    OnboardingCommunityActionUiModel(
-                        id = "telegram",
-                        titleResId = R.string.onboarding_community_telegram_title,
-                        descriptionResId = R.string.onboarding_community_telegram_desc,
-                        iconResId = R.drawable.telegram,
-                        url = "https://t.me/ArchiveTuneGC",
-                    ),
-                    OnboardingCommunityActionUiModel(
-                        id = "donate",
-                        titleResId = R.string.about_content_desc_donate,
-                        descriptionResId = R.string.onboarding_community_donate_desc,
-                        iconResId = R.drawable.coffee,
-                        url = "https://koiiverse.cloud/donate",
+                        url = "https://github.com/StrokeDot/ArchiveTune",
                     ),
                 )
         }

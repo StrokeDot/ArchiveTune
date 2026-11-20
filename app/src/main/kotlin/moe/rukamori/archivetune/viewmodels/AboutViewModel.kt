@@ -416,31 +416,7 @@ class AboutViewModel
                             id = "github",
                             iconResId = R.drawable.github,
                             labelResId = R.string.about_content_desc_github,
-                            url = "https://github.com/rukamori/ArchiveTune",
-                        ),
-                        AboutLinkUiModel(
-                            id = "website",
-                            iconResId = R.drawable.website,
-                            labelResId = R.string.about_content_desc_website,
-                            url = "https://archivetune.koiiverse.cloud",
-                        ),
-                        AboutLinkUiModel(
-                            id = "telegram",
-                            iconResId = R.drawable.telegram,
-                            labelResId = R.string.about_content_desc_telegram,
-                            url = "https://t.me/ArchiveTuneGC",
-                        ),
-                        AboutLinkUiModel(
-                            id = "donate",
-                            iconResId = R.drawable.coffee,
-                            labelResId = R.string.about_content_desc_donate,
-                            url = "https://koiiverse.cloud/donate",
-                        ),
-                        AboutLinkUiModel(
-                            id = "discord",
-                            iconResId = R.drawable.discord,
-                            labelResId = R.string.discord,
-                            url = "https://discord.gg/XF2fpb9rTq",
+                            url = "https://github.com/StrokeDot/ArchiveTune",
                         ),
                         AboutLinkUiModel(
                             id = "privacy_policy",

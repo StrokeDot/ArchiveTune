@@ -2341,6 +2341,7 @@ class MusicService :
     }
 
     private fun startDiscordSyncWorker() {
+        if (!BuildConfig.DISCORD_PRESENCE_AVAILABLE) return
         if (discordSyncWorkerJob?.isActive == true) return
         discordSyncWorkerJob =
             scope.launch(Dispatchers.IO) {
@@ -2371,6 +2372,7 @@ class MusicService :
         reason: String,
         force: Boolean = false,
     ) {
+        if (!BuildConfig.DISCORD_PRESENCE_AVAILABLE) return
         val request =
             DiscordSyncRequest(
                 epoch = discordSyncEpoch.incrementAndGet(),
@@ -2503,6 +2505,7 @@ class MusicService :
     }
 
     suspend fun refreshDiscordNow(): Boolean {
+        if (!BuildConfig.DISCORD_PRESENCE_AVAILABLE) return false
         val waiter = CompletableDeferred<Boolean>()
         addPendingDiscordRefreshWaiter(waiter)
         requestDiscordSync(
@@ -2991,6 +2994,7 @@ class MusicService :
     }
 
     private fun ensurePresenceManager() {
+        if (!BuildConfig.DISCORD_PRESENCE_AVAILABLE) return
         if (DiscordPresenceManager.isRunning() && lastPresenceToken != null) return
 
         if (currentMediaMetadata.value?.isPodcast == true) {

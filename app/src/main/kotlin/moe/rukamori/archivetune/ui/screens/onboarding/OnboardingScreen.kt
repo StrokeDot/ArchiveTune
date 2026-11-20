@@ -60,6 +60,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -631,6 +632,7 @@ private fun SunnyIdentityPanel(
                 Icon(
                     painter = painterResource(iconResId),
                     contentDescription = null,
+                    tint = if (iconResId == R.drawable.app_icon_small) Color.Unspecified else androidx.compose.material3.LocalContentColor.current,
                     modifier = Modifier.size(150.dp),
                 )
             }
@@ -744,9 +746,6 @@ private fun CommunityPage(
                 subtitleResId = page.subtitleResId,
             )
         }
-        item(key = "community-spotlight", contentType = "spotlight") {
-            CommunitySpotlight(actions = uiState.communityActions)
-        }
         itemsIndexed(
             items = uiState.communityActions,
             key = { _, item -> item.id },
@@ -766,47 +765,6 @@ private fun CommunityPage(
                 onBack = onBack,
                 onNext = onNext,
             )
-        }
-    }
-}
-
-@Composable
-private fun CommunitySpotlight(actions: ImmutableList<OnboardingCommunityActionUiModel>) {
-    Surface(
-        modifier =
-            Modifier
-                .widthIn(max = OnboardingContentMaxWidth)
-                .fillMaxWidth()
-                .padding(bottom = 14.dp)
-                .glassAwareCardBorder(MaterialTheme.shapes.extraLarge),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = glassAwareCardColor(),
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 1.dp,
-    ) {
-        Row(
-            modifier = Modifier.padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            actions.forEach { action ->
-                Surface(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .aspectRatio(1f),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            painter = painterResource(action.iconResId),
-                            contentDescription = null,
-                            modifier = Modifier.size(30.dp),
-                        )
-                    }
-                }
-            }
         }
     }
 }

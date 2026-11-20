@@ -44,8 +44,8 @@ if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
 
-val baseVersionName = "18.0"
-val baseVersionCode = 1700
+val baseVersionName = "18.0.1"
+val baseVersionCode = 1701
 
 val discordApplicationId =
     (
@@ -106,6 +106,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+        buildConfigField("boolean", "DISCORD_PRESENCE_AVAILABLE", "false")
 
         // The LastWave engine links Google Oboe (prefab), which requires the
         // shared C++ STL. All of the app's native targets then build against

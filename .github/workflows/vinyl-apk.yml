@@ -34,7 +34,7 @@ jobs:
         env:
           PULL_REQUEST: 'false'
           START_IO_APP_ID: ''
-        run: bash gradlew --no-daemon :app:assembleGmsMobileArm64Release
+        run: bash gradlew --no-daemon :core:test :app:assembleGmsMobileArm64Release
       - name: Prepare unsigned APK
         run: |
           set -euo pipefail
