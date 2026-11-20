@@ -28,15 +28,6 @@ import moe.rukamori.archivetune.constants.GitHubReleasesLastCheckedAtKey
 import org.json.JSONArray
 import org.json.JSONObject
 
-data class GitCommit(
-    val sha: String,
-    val message: String,
-    val author: String,
-    val date: String,
-    val url: String,
-    val authorAvatarUrl: String? = null,
-)
-
 data class ReleaseInfo(
     val tagName: String,
     val name: String,
@@ -401,62 +392,6 @@ object Updater {
             latestReleaseTag = latest.tagName
             latestReleaseDownloadUrl = latest.downloadUrl
             latest
-        }
-
-    suspend fun getCommitHistory(
-        count: Int = 20,
-        branch: String = "main",
-    ): Result<List<GitCommit>> =
-        runCatchingCancellable {
-            if (!isUpdaterDistribution) {
-                return@runCatchingCancellable emptyList()
-            }
-
-            val perPage = if (count <= 0) 100 else count.coerceAtMost(100)
-            val unlimited = count <= 0
-            val commits = mutableListOf<GitCommit>()
-            var pageUrl: String? =
-                "https://api.github.com/repos/$OWNER/commits?sha=$branch&per_page=$perPage&page=1"
-
-            while (pageUrl != null) {
-                val response = client.get(pageUrl) {
-                    headers {
-                        append("Accept", "application/vnd.github+json")
-                        append("User-Agent", "ArchiveTune")
-                    }
-                }
-                if (response.status.value !in 200..299) break
-
-                val body = response.bodyAsText()
-                val jsonArray = JSONArray(body)
-                if (jsonArray.length() == 0) break
-
-                for (i in 0 until jsonArray.length()) {
-                    if (!unlimited && commits.size >= count) break
-                    val commitObj = jsonArray.getJSONObject(i)
-                    val commit = commitObj.getJSONObject("commit")
-                    val authorObj = commit.optJSONObject("author")
-                    val githubAuthorObj = commitObj.optJSONObject("author")
-                    commits.add(
-                        GitCommit(
-                            sha = commitObj.optString("sha", "").take(7),
-                            message = commit.optString("message", "").lines().firstOrNull() ?: "",
-                            author = authorObj?.optString("name", "Unknown") ?: "Unknown",
-                            date = authorObj?.optString("date", "") ?: "",
-                            url = commitObj.optString("html_url", ""),
-                            authorAvatarUrl = githubAuthorObj?.optString("avatar_url")?.takeIf { it.isNotBlank() },
-                        ),
-                    )
-                }
-
-                if (!unlimited && commits.size >= count) break
-
-                pageUrl = response.headers["Link"]?.let { linkHeader ->
-                    val nextRegex = Regex("""<([^>]+)>;\s*rel="next"""")
-                    nextRegex.find(linkHeader)?.groupValues?.getOrNull(1)
-                }
-            }
-            commits
         }
 
     fun getLatestDownloadUrl(): String {

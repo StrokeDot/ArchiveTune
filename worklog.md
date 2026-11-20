@@ -5768,3 +5768,16 @@ Work Log:
 
 Stage Summary:
 - Prepare the 18.0.1 ARM64 update. Live Brand Account verification requires a signed-in device.
+
+---
+Task ID: Vinyl 3
+Agent: Codex
+
+Task: Adopt the Ribbon Note app icon and simplify the Update screen.
+
+Work Log:
+- Replace the app artwork with Ribbon Note on white and provide matching adaptive, round, and themed launcher resources.
+- Remove the Recent Commits section and its GitHub commits request. Preserve the release check, release notes, and APK download flows.
+
+Stage Summary:
+- The launcher and Update screen changes are ready for the next signed ARM64 build.
