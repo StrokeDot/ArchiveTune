@@ -183,7 +183,7 @@ fun ThumbnailCornerRadiusModal(
                         contentAlignment = Alignment.Center,
                     ) {
                         Image(
-                            painter = painterResource(R.drawable.ic_music_placeholder),
+                            painter = painterResource(R.drawable.app_icon_small),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize(),

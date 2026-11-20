@@ -2,6 +2,7 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
+            <size android:width="320dp" android:height="180dp" />
             <gradient
                 android:angle="0"
                 android:endColor="#141414"
@@ -10,13 +11,8 @@
         </shape>
     </item>
     <item
-        android:top="24dp"
-        android:bottom="24dp"
-        android:left="92dp"
-        android:right="92dp">
-        <bitmap
-            android:antialias="true"
-            android:gravity="center"
-            android:src="@drawable/about_appbar" />
-    </item>
+        android:drawable="@mipmap/ic_launcher_foreground"
+        android:gravity="center"
+        android:width="160dp"
+        android:height="160dp" />
 </layer-list>

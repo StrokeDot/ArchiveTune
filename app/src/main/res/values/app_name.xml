@@ -11,4 +11,9 @@
     <string name="widget_listening_insights_description">Listening insights widget with recent songs, genres, and recommendations</string>
     <string name="vinyl_settings_integration_subtitle">Last.fm, Libre.fm, ListenBrainz, and music services</string>
     <string name="vinyl_onboarding_project_subtitle">Follow releases and report issues.</string>
+    <string name="music_about_version">v%1$s</string>
+    <string name="music_about_fork_credit">Music is a fork of ArchiveTune. Thanks to the original project and its contributors.</string>
+    <string name="music_about_original_github">ArchiveTune on GitHub</string>
+    <string name="music_about_licenses">Licenses</string>
+    <string name="music_about_app_license">Music source and GPL-3.0 license</string>
 </resources>

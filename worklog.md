@@ -5781,3 +5781,17 @@ Work Log:
 
 Stage Summary:
 - Prepare Music 18.0.2 with the existing fork update channel and release signing key.
+
+---
+Task ID: Vinyl 4
+Agent: Codex
+
+Task: Apply Music branding consistently and simplify the About page.
+
+Work Log:
+- Use Ribbon Note for playback and other app notifications, the TV banner, and the artwork settings preview.
+- Display the round logo, version, and fork credit in the About page's scroll layout.
+- Link to 4nx3b/ArchiveTune and retain access to the fork license and dependency notices.
+
+Stage Summary:
+- Prepare Music 18.0.3 for ARM64 CI and release signing.
