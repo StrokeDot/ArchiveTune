@@ -5809,3 +5809,18 @@ Work Log:
 
 Stage Summary:
 - Build Music 18.0.4 with the branding and missing-file changes.
+
+---
+Task ID: Vinyl 6
+Agent: Codex
+
+Task: Make replacement file selection reliable and visible.
+
+Work Log:
+- Keep the requested track ID through the system picker and handle its returned URI explicitly.
+- Validate replacements with Media3 and update their duration without changing track IDs.
+- Keep a private audio copy when the file provider cannot grant lasting access.
+- Show progress and an explicit success or failure result.
+
+Stage Summary:
+- Build Music 18.0.5 for signed ARM64 release.

@@ -9,6 +9,9 @@
     <string name="music_missing_replace_file">Replace</string>
     <string name="music_missing_remove_file">Remove</string>
     <string name="music_missing_remove_confirmation">Remove “%1$s” from Music? This also removes its entries from playlists and listening history.</string>
+    <string name="music_missing_picker_failed">No file came back from the file picker. Choose Replace and try again.</string>
+    <string name="music_missing_replace_succeeded">File replaced</string>
+    <string name="music_missing_replace_succeeded_detail">The track is back in Available. Its history and playlists are still linked.</string>
     <string name="music_missing_replace_failed">Music couldn’t link this file. Choose a readable file with an audio track.</string>
     <string name="music_missing_remove_failed">Music couldn’t remove the entry. Try again.</string>
 </resources>

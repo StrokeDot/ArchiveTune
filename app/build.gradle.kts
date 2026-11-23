@@ -44,8 +44,8 @@ if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
 
-val baseVersionName = "18.0.4"
-val baseVersionCode = 1704
+val baseVersionName = "18.0.5"
+val baseVersionCode = 1705
 
 val discordApplicationId =
     (

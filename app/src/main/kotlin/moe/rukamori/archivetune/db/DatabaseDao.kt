@@ -737,6 +737,9 @@ interface DatabaseDao {
     @Query("DELETE FROM song WHERE id = :id AND isLocal = 1")
     suspend fun removeLocalSong(id: String)
 
+    @Query("UPDATE song SET duration = :duration WHERE id = :id AND isLocal = 1")
+    suspend fun updateLocalReplacementDuration(id: String, duration: Int): Int
+
     @Query("SELECT * FROM artist WHERE id IN (:ids)")
     suspend fun getArtistEntitiesByIds(ids: List<String>): List<ArtistEntity>
 

@@ -8,6 +8,7 @@
 package moe.rukamori.archivetune.ui.screens.library
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -163,15 +164,29 @@ fun LocalSongScreen(
     val missingIds by viewModel.missingIds.collectAsStateWithLifecycle()
     val fileAction by viewModel.fileAction.collectAsStateWithLifecycle()
     var showMissingFiles by rememberSaveable { mutableStateOf(startInMissingFiles) }
-    var replacementId by rememberSaveable { mutableStateOf<String?>(null) }
     var removalId by rememberSaveable { mutableStateOf<String?>(null) }
     val missingSongs = remember(songs, missingIds) { songs.filter { it.id in missingIds } }
     val replacementPicker =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            val id = replacementId
-            replacementId = null
-            if (id != null && uri != null) viewModel.replaceFile(id, uri)
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            viewModel.onReplacementResult(result.resultCode, result.data)
         }
+
+    fileAction.successRes?.let { message ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissFileActionSuccess,
+            title = { Text(stringResource(message)) },
+            text = { Text(stringResource(R.string.music_missing_replace_succeeded_detail)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.dismissFileActionSuccess()
+                    showMissingFiles = false
+                }) { Text(stringResource(R.string.music_available_files)) }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::dismissFileActionSuccess) { Text(stringResource(R.string.close)) }
+            },
+        )
+    }
 
     val removal = missingSongs.firstOrNull { it.id == removalId }
     if (removal != null) {
@@ -543,13 +558,24 @@ fun LocalSongScreen(
                         )
                     }
                 }
+                if (fileAction.activeId != null) {
+                    item(key = "missing_file_action") {
+                        androidx.compose.material3.LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                        )
+                    }
+                }
                 itemsIndexed(missingSongs, key = { _, song -> song.id }) { _, song ->
                     MissingLocalFileRow(
                         song = song,
                         enabled = fileAction.activeId == null,
                         onReplace = {
-                            replacementId = song.id
-                            replacementPicker.launch(arrayOf("audio/*", "video/mp4", "video/webm", "video/3gpp", "application/ogg"))
+                            viewModel.beginReplacement(song.id)
+                            replacementPicker.launch(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                                addCategory(Intent.CATEGORY_OPENABLE)
+                                type = "*/*"
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                            })
                         },
                         onRemove = { removalId = song.id },
                     )

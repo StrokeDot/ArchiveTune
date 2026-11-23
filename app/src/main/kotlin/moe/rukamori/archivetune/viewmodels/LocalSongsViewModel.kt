@@ -7,14 +7,17 @@
 
 package moe.rukamori.archivetune.viewmodels
 
+import android.app.Activity
 import android.content.Context
-import android.net.Uri
+import android.content.Intent
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +39,7 @@ class LocalSongsViewModel
     constructor(
         @ApplicationContext private val context: Context,
         private val database: MusicDatabase,
+        private val savedState: SavedStateHandle,
         private val localSongScanner: LocalSongScanner,
     ) : ViewModel() {
         private val _scanState = MutableStateFlow(LocalSongsScanState())
@@ -52,10 +56,26 @@ class LocalSongsViewModel
         private val _fileAction = MutableStateFlow(LocalFileActionState())
         val fileAction = _fileAction.asStateFlow()
 
-        fun replaceFile(id: String, uri: Uri) {
-            updateMissingFile(id, R.string.music_missing_replace_failed) {
+        fun beginReplacement(id: String) {
+            savedState["replacementTrackId"] = id
+        }
+
+        fun onReplacementResult(resultCode: Int, data: Intent?) {
+            val id = savedState.remove<String>("replacementTrackId")
+            if (resultCode != Activity.RESULT_OK) return
+            val clip = data?.clipData
+            val uri = data?.data ?: clip?.takeIf { it.itemCount == 1 }?.getItemAt(0)?.uri
+            if (id == null || uri == null) {
+                _fileAction.value = LocalFileActionState(errorRes = R.string.music_missing_picker_failed)
+                return
+            }
+            updateMissingFile(id, R.string.music_missing_replace_failed, R.string.music_missing_replace_succeeded) {
                 LocalMediaUriHeals.replace(context, database, id, uri)
             }
+        }
+
+        fun dismissFileActionSuccess() {
+            _fileAction.value = _fileAction.value.copy(successRes = null)
         }
 
         fun removeFile(id: String) {
@@ -68,13 +88,20 @@ class LocalSongsViewModel
             _fileAction.value = _fileAction.value.copy(errorRes = null)
         }
 
-        private fun updateMissingFile(id: String, errorRes: Int, update: suspend () -> Unit) {
-            if (_fileAction.value.activeId != null || id !in missingIds.value) return
+        private fun updateMissingFile(
+            id: String,
+            errorRes: Int,
+            successRes: Int? = null,
+            update: suspend () -> Unit,
+        ) {
+            if (_fileAction.value.activeId != null) return
             _fileAction.value = LocalFileActionState(activeId = id)
             viewModelScope.launch {
                 try {
                     update()
-                    _fileAction.value = LocalFileActionState()
+                    _fileAction.value = LocalFileActionState(successRes = successRes)
+                } catch (_: TimeoutCancellationException) {
+                    _fileAction.value = LocalFileActionState(errorRes = errorRes)
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: Exception) {
@@ -111,6 +138,7 @@ class LocalSongsViewModel
 data class LocalFileActionState(
     val activeId: String? = null,
     val errorRes: Int? = null,
+    val successRes: Int? = null,
 )
 
 data class LocalSongsScanState(
