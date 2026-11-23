@@ -306,7 +306,9 @@ import moe.rukamori.archivetune.constants.DefaultArtworkProviderOrder
 import moe.rukamori.archivetune.constants.deserializeArtworkProviderOrder
 import moe.rukamori.archivetune.utils.PoolAccountManager
 import moe.rukamori.archivetune.utils.isLocalMediaId
+import moe.rukamori.archivetune.localmedia.LocalFileAvailability
 import moe.rukamori.archivetune.localmedia.LocalMediaUriHeals
+import moe.rukamori.archivetune.localmedia.isLocalFileNotFound
 import moe.rukamori.archivetune.audiosource.ReplayGainTagParser
 import moe.rukamori.archivetune.tidal.TidalInstanceHealthManager
 import moe.rukamori.archivetune.constants.PlayerVolumeKey
@@ -7567,13 +7569,10 @@ class MusicService :
             }
         }
 
-        if (isLocalMedia && isLocalSourceNotFoundError(error)) {
-            val resumeIndex = player.currentMediaItemIndex
-            val resumePosition = player.currentPosition.coerceAtLeast(0L)
-            val resumePlayback = player.playWhenReady
-            if (healLocalMediaSource(currentMediaId, resumeIndex, resumePosition, resumePlayback)) {
-                return
-            }
+        if (isLocalMedia && error.isLocalFileNotFound()) {
+            scope.launch { LocalFileAvailability.checkAfterPlaybackError(this@MusicService, currentMediaId) }
+            if (dataStore.get(AutoSkipNextOnErrorKey, false)) skipOnError() else stopOnError()
+            return
         }
 
         val streamHttpFailure = findStreamHttpFailure(error)
@@ -7886,84 +7885,6 @@ class MusicService :
 
     private fun isMediaCodecStateError(error: PlaybackException): Boolean =
         isRecoverableMediaCodecStateError(error)
-
-    private fun isLocalSourceNotFoundError(error: PlaybackException): Boolean {
-        if (error.errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND) return true
-
-        return generateSequence<Throwable>(error) { it.cause }.take(6)
-            .any { it is java.io.FileNotFoundException }
-    }
-
-    private fun healLocalMediaSource(
-        mediaId: String,
-        resumeIndex: Int,
-        resumePosition: Long,
-        resumePlayback: Boolean,
-    ): Boolean {
-        if (!mediaId.isLocalMediaId()) return false
-        if (!mediaId.startsWith("content://")) return false
-        if (LocalMediaUriHeals.isKnownUnhealable(mediaId)) return false
-        scope.launch(Dispatchers.IO) {
-            val song = runCatching { database.song(mediaId).first() }.getOrNull()
-            val healedUri = runCatching {
-                LocalMediaUriHeals.resolveReplacement(
-                    context = this@MusicService,
-                    staleMediaId = mediaId,
-                    title = song?.song?.title,
-                    durationMs = song?.song?.duration?.takeIf { it > 0 }?.let { it * 1000L },
-                    artist = song?.artists?.firstOrNull()?.name,
-                )
-            }.getOrNull()
-
-            if (healedUri == null) {
-                LocalMediaUriHeals.markUnhealable(mediaId)
-                Timber.tag(TAG).w(
-                    "Local media %s no longer resolves and no MediaStore replacement matched; " +
-                        "falling back to skip/stop handling",
-                    mediaId,
-                )
-                withContext(Dispatchers.Main) {
-                    if (dataStore.get(AutoSkipNextOnErrorKey, false)) {
-                        skipOnError()
-                    } else {
-                        stopOnError()
-                    }
-                }
-                return@launch
-            }
-
-            LocalMediaUriHeals.record(mediaId, healedUri)
-            LocalMediaUriHeals.persist(this@MusicService)
-            Timber.tag(TAG).i(
-                "Healed stale local media URI for %s -> %s (title=%s)",
-                mediaId,
-                healedUri,
-                song?.song?.title,
-            )
-
-            withContext(Dispatchers.Main) {
-                val index =
-                    (0 until player.mediaItemCount)
-                        .firstOrNull { player.getMediaItemAt(it).mediaId == mediaId }
-                        ?: resumeIndex.takeIf { it in 0 until player.mediaItemCount }
-                        ?: return@withContext
-                val item = player.getMediaItemAt(index)
-                val updated =
-                    item
-                        .buildUpon()
-                        .setUri(android.net.Uri.parse(healedUri))
-                        .build()
-                runCatching { player.replaceMediaItem(index, updated) }
-                    .onFailure {
-                        Timber.tag(TAG).w(it, "Failed to swap healed URI into the queue for %s", mediaId)
-                    }
-                player.seekTo(index, resumePosition)
-                player.prepare()
-                if (resumePlayback) player.play() else player.pause()
-            }
-        }
-        return true
-    }
 
     private fun isExclusiveAudioWriteError(error: PlaybackException): Boolean =
         isRecoverableExclusiveAudioWriteError(error)
@@ -10167,7 +10088,11 @@ class MusicService :
         allowCacheShortCircuit: Boolean,
     ): DataSpec {
         if (dataSpec.uri.shouldBypassYouTubeResolver()) {
-            return dataSpec
+            if (!dataSpec.uri.toString().isLocalMediaId()) return dataSpec
+            LocalMediaUriHeals.loadBlocking(this)
+            return LocalMediaUriHeals.uriFor(dataSpec.uri.toString())
+                ?.let { dataSpec.withUri(it.toUri()) }
+                ?: dataSpec
         }
         val mediaId = dataSpec.key ?: return dataSpec
         val lowDataModeActive = isLowDataModeActive()

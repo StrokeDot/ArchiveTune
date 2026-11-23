@@ -42,6 +42,7 @@ import moe.rukamori.archivetune.ui.screens.library.LibraryArtistsScreen
 import moe.rukamori.archivetune.ui.screens.library.LibraryScreen
 import moe.rukamori.archivetune.ui.screens.library.LibrarySpotifyPlaylistsScreen
 import moe.rukamori.archivetune.ui.screens.library.LocalSongScreen
+import moe.rukamori.archivetune.ui.screens.library.MissingLocalFilesRoute
 import moe.rukamori.archivetune.ui.screens.musicrecognition.MusicRecognitionScreen
 import moe.rukamori.archivetune.ui.screens.musicrecognition.MusicRecognitionDetailsScreen
 import moe.rukamori.archivetune.ui.screens.playlist.AutoPlaylistScreen
@@ -178,6 +179,9 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("local_songs") {
         LocalSongScreen(navController)
+    }
+    composable(MissingLocalFilesRoute) {
+        LocalSongScreen(navController, startInMissingFiles = true)
     }
     composable("history") {
         HistoryScreen(navController)

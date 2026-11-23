@@ -5795,3 +5795,17 @@ Work Log:
 
 Stage Summary:
 - Prepare Music 18.0.3 for ARM64 CI and release signing.
+
+---
+Task ID: Vinyl 5
+Agent: Codex
+
+Task: Let listeners replace or remove missing local files.
+
+Work Log:
+- Recheck tracked local media on resume and when Android reports media changes.
+- Keep missing records available for replacement while filtering them out of Recently Played and playable local files.
+- Preserve a track's history and playlist references when linking a replacement document. Use a dedicated message for missing local playback.
+
+Stage Summary:
+- Build Music 18.0.4 with the branding and missing-file changes.

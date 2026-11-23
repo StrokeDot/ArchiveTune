@@ -12,6 +12,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.net.toUri
 import java.util.Locale
+import moe.rukamori.archivetune.localmedia.LocalMediaUriHeals
 
 fun String.isLocalMediaId(): Boolean =
     runCatching {
@@ -26,7 +27,7 @@ fun shareLocalAudio(
     mediaId: String,
     mimeType: String? = null,
 ): Boolean {
-    val uri = mediaId.toUri()
+    val uri = (LocalMediaUriHeals.uriFor(mediaId) ?: mediaId).toUri()
     val scheme = uri.scheme?.lowercase(Locale.US)
     if (scheme != "content" && scheme != "android.resource") return false
 

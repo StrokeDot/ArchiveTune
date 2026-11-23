@@ -51,6 +51,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -61,7 +62,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SheetState
@@ -98,6 +103,7 @@ import com.kyant.backdrop.Backdrop
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.db.entities.Song
 import moe.rukamori.archivetune.constants.CONTENT_TYPE_HEADER
 import moe.rukamori.archivetune.constants.CONTENT_TYPE_SONG
 import moe.rukamori.archivetune.constants.LiquidGlassEnabledKey
@@ -143,6 +149,7 @@ import androidx.compose.runtime.setValue
 @Composable
 fun LocalSongScreen(
     navController: NavController,
+    startInMissingFiles: Boolean = false,
     viewModel: LocalSongsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -153,6 +160,48 @@ fun LocalSongScreen(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
     val songs by viewModel.songs.collectAsStateWithLifecycle()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
+    val missingIds by viewModel.missingIds.collectAsStateWithLifecycle()
+    val fileAction by viewModel.fileAction.collectAsStateWithLifecycle()
+    var showMissingFiles by rememberSaveable { mutableStateOf(startInMissingFiles) }
+    var replacementId by rememberSaveable { mutableStateOf<String?>(null) }
+    var removalId by rememberSaveable { mutableStateOf<String?>(null) }
+    val missingSongs = remember(songs, missingIds) { songs.filter { it.id in missingIds } }
+    val replacementPicker =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            val id = replacementId
+            replacementId = null
+            if (id != null && uri != null) viewModel.replaceFile(id, uri)
+        }
+
+    val removal = missingSongs.firstOrNull { it.id == removalId }
+    if (removal != null) {
+        AlertDialog(
+            onDismissRequest = { removalId = null },
+            title = { Text(stringResource(R.string.music_missing_remove_file)) },
+            text = { Text(stringResource(R.string.music_missing_remove_confirmation, removal.song.title)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    removalId = null
+                    viewModel.removeFile(removal.id)
+                }) {
+                    Text(stringResource(R.string.music_missing_remove_file))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { removalId = null }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
+
+    fileAction.errorRes?.let { message ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissFileActionError,
+            text = { Text(stringResource(message)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::dismissFileActionError) { Text(stringResource(R.string.close)) }
+            },
+        )
+    }
     val listState = rememberLazyListState()
     val scanSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showScanSheet by rememberSaveable { mutableStateOf(false) }
@@ -264,12 +313,12 @@ fun LocalSongScreen(
         }
     val bottomContentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding() + 20.dp
 
-    val visibleSongs by remember(songs, query, sortType, sortDescending, collator) {
+    val visibleSongs by remember(songs, query, sortType, sortDescending, collator, missingIds) {
         derivedStateOf {
             val normalizedQuery = query.trim()
             val supportedSongs =
                 songs.filter { song ->
-                    SupportedLocalAudio.isSupportedMimeType(song.format?.mimeType)
+                    song.id !in missingIds && SupportedLocalAudio.isSupportedMimeType(song.format?.mimeType)
                 }
             val filteredSongs =
                 if (normalizedQuery.isBlank()) {
@@ -462,6 +511,52 @@ fun LocalSongScreen(
                     bottom = bottomContentPadding,
                 ),
         ) {
+            item(key = "local_file_tabs") {
+                PrimaryTabRow(
+                    selectedTabIndex = if (showMissingFiles) 1 else 0,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                ) {
+                    Tab(
+                        selected = !showMissingFiles,
+                        onClick = { showMissingFiles = false },
+                        text = { Text(stringResource(R.string.music_available_files)) },
+                    )
+                    Tab(
+                        selected = showMissingFiles,
+                        onClick = {
+                            showMissingFiles = true
+                            isSearchActive = false
+                        },
+                        text = { Text(stringResource(R.string.music_missing_files)) },
+                    )
+                }
+            }
+            if (showMissingFiles) {
+                if (missingSongs.isEmpty()) {
+                    item(key = "missing_empty") {
+                        Text(
+                            text = stringResource(
+                                if (hasStoragePermission) R.string.music_missing_empty else R.string.music_missing_permission,
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                        )
+                    }
+                }
+                itemsIndexed(missingSongs, key = { _, song -> song.id }) { _, song ->
+                    MissingLocalFileRow(
+                        song = song,
+                        enabled = fileAction.activeId == null,
+                        onReplace = {
+                            replacementId = song.id
+                            replacementPicker.launch(arrayOf("audio/*", "video/mp4", "video/webm", "video/3gpp", "application/ogg"))
+                        },
+                        onRemove = { removalId = song.id },
+                    )
+                }
+                return@LazyColumn
+            }
+
             item(
                 key = "controls",
                 contentType = CONTENT_TYPE_HEADER,
@@ -1411,4 +1506,34 @@ private enum class LocalSongSortType {
     NAME,
     ARTIST,
     ALBUM,
+}
+
+const val MissingLocalFilesRoute = "local_missing_files"
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MissingLocalFileRow(
+    song: Song,
+    enabled: Boolean,
+    onReplace: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(song.song.title) },
+        supportingContent = {
+            Column {
+                val artists = song.artists.joinToString { it.name }
+                if (artists.isNotBlank()) Text(artists)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onReplace, enabled = enabled) {
+                        Text(stringResource(R.string.music_missing_replace_file))
+                    }
+                    TextButton(onClick = onRemove, enabled = enabled) {
+                        Text(stringResource(R.string.music_missing_remove_file))
+                    }
+                }
+            }
+        },
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
 }

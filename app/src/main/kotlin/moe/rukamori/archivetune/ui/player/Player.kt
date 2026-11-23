@@ -243,6 +243,8 @@ import moe.rukamori.archivetune.ui.utils.getNextFallbackUrl
 import moe.rukamori.archivetune.ui.utils.resize
 import moe.rukamori.archivetune.utils.ImageBlurUtils
 import moe.rukamori.archivetune.utils.isLocalMediaId
+import moe.rukamori.archivetune.localmedia.isLocalFileNotFound
+import moe.rukamori.archivetune.ui.screens.library.MissingLocalFilesRoute
 import moe.rukamori.archivetune.ui.player.bitchord.BitChordPlayerContent
 import moe.rukamori.archivetune.ui.player.flamingo.FlamingoPlayerContent
 import moe.rukamori.archivetune.ui.player.tiktok.TikTokPlayerContent
@@ -3001,7 +3003,26 @@ fun BottomSheetPlayer(
     val activePlaybackError = playbackError
     val isRecoveryDestination =
         currentRoute?.startsWith(LOGIN_ROUTE) == true || currentRoute == PO_TOKEN_ROUTE
-    if (activePlaybackError != null && !isRecoveryDestination) {
+    val missingLocalFile =
+        activePlaybackError?.isLocalFileNotFound() == true && mediaMetadata?.id?.isLocalMediaId() == true
+    if (missingLocalFile && currentRoute != MissingLocalFilesRoute) {
+        AlertDialog(
+            onDismissRequest = dismissPlaybackError,
+            title = { Text(stringResource(R.string.music_missing_file_title)) },
+            text = { Text(stringResource(R.string.music_missing_file_detail)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    dismissPlaybackError()
+                    navController.navigate(MissingLocalFilesRoute) { launchSingleTop = true }
+                }) {
+                    Text(stringResource(R.string.music_missing_files))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = dismissPlaybackError) { Text(stringResource(R.string.close)) }
+            },
+        )
+    } else if (activePlaybackError != null && !isRecoveryDestination && !missingLocalFile) {
         val errorInfo = remember(activePlaybackError) { activePlaybackError.toPlaybackErrorInfo() }
         val loginClick =
             remember(errorInfo.loginRecoveryUrl, navigateToLogin) {

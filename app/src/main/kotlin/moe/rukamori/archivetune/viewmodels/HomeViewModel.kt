@@ -53,6 +53,7 @@ import moe.rukamori.archivetune.constants.SpeedDialSongIdsKey
 import moe.rukamori.archivetune.constants.YouTubeMusicRegionKey
 import moe.rukamori.archivetune.constants.YtmSyncKey
 import moe.rukamori.archivetune.db.MusicDatabase
+import moe.rukamori.archivetune.localmedia.LocalFileAvailability
 import moe.rukamori.archivetune.extensions.filterBlockedArtists
 import moe.rukamori.archivetune.extensions.filterBlockedSongs
 import moe.rukamori.archivetune.extensions.toEnum
@@ -258,7 +259,13 @@ class HomeViewModel
         private val speedDialItems = MutableStateFlow<List<LocalItem>>(emptyList())
         private val forgottenFavorites = MutableStateFlow<List<Song>?>(null)
         private val keepListening = MutableStateFlow<List<LocalItem>?>(null)
-        private val recentlyPlayed = MutableStateFlow<List<Song>?>(null)
+        private val recentlyPlayed =
+            combine(database.recentSongs(limit = 60), LocalFileAvailability.missingIds) { songs, missing ->
+                songs.asSequence()
+                    .filter { song -> song.id !in missing && song.artists.none { it.blockedAt != null } }
+                    .take(30)
+                    .toList()
+            }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
         private val hiddenHomeItems =
             context.dataStore.data
@@ -324,13 +331,15 @@ class HomeViewModel
                     recentlyPlayed = recentlyPlayed,
                 )
             }.combine(stableHeroPicks) { stage, heroPicks ->
+                stage to heroPicks
+            }.combine(LocalFileAvailability.missingIds) { (stage, heroPicks), missing ->
                 HomeLocalContent(
-                    quickPicks = stage.quickPicks.orEmpty(),
-                    speedDialItems = stage.speedDialItems,
-                    forgottenFavorites = stage.forgottenFavorites.orEmpty(),
-                    keepListening = stage.keepListening.orEmpty(),
+                    quickPicks = stage.quickPicks.orEmpty().filterNot { it.id in missing },
+                    speedDialItems = stage.speedDialItems.filterNot { it is Song && it.id in missing },
+                    forgottenFavorites = stage.forgottenFavorites.orEmpty().filterNot { it.id in missing },
+                    keepListening = stage.keepListening.orEmpty().filterNot { it is Song && it.id in missing },
                     recentlyPlayed = stage.recentlyPlayed.orEmpty(),
-                    heroPicks = heroPicks,
+                    heroPicks = heroPicks.filterNot { it.id in missing },
                 )
             }
 
@@ -641,13 +650,6 @@ class HomeViewModel
                     }
 
                     launchHomeSection {
-                        recentlyPlayed.value =
-                            database
-                                .recentSongs(limit = 30)
-                                .first()
-                                .filter { song -> song.artists.none { it.blockedAt != null } }
-                                .distinctBy { it.id }
-                                .take(30)
                         if (quickPicks.value.isNullOrEmpty()) refreshHeroPicks(recentlyPlayed.value.orEmpty())
                     }
 

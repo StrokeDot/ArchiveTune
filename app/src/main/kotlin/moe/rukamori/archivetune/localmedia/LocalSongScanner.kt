@@ -106,18 +106,17 @@ class LocalSongScanner
                     (context.dataStore.getAsync(LocalScanExtractionVersionKey) ?: 0) < ExtractionVersion
                 val previousScan = if (fullRescan) emptyMap() else loadSongs(database.localSongIds())
                 val snapshot = queryTracks(scanConfig, previousScan)
+                LocalMediaUriHeals.loadBlocking(context)
+                val scannedIdSet = snapshot.tracks.mapTo(hashSetOf(), LocalTrackRecord::id)
+                val excludedIds =
+                    database.localSongIds()
+                        .filterNot(scannedIdSet::contains)
+                        .filter { LocalFileAvailability.canPruneFromScan(context, it) }
                 val summary =
                     database.withTransaction {
-                    val existingLocalIds = localSongIds()
                     val scannedIds = snapshot.tracks.map(LocalTrackRecord::id)
-                    val scannedIdSet = scannedIds.toSet()
-                    val removedIds = existingLocalIds.filterNot(scannedIdSet::contains)
-
-                    if (scannedIds.isEmpty()) {
-                        clearLocalSongs()
-                    } else {
-                        removedIds.chunked(SqlBatchSize).forEach(::deleteSongsByIds)
-                    }
+                    val removedIds = excludedIds - scannedIds.toSet()
+                    removedIds.chunked(SqlBatchSize).forEach(::deleteSongsByIds)
 
                     val existingSongs = loadSongs(scannedIds)
 
@@ -476,7 +475,7 @@ class LocalSongScanner
                                 unchanged = kept != null,
                             )
                     }
-                }
+                } ?: throw java.io.IOException("Android audio index is unavailable")
 
             if (pending.isNotEmpty()) {
                 val permits = Semaphore(ExtractionParallelism)

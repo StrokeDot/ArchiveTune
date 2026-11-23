@@ -8,147 +8,123 @@
 package moe.rukamori.archivetune.localmedia
 
 import android.content.Context
+import android.content.Intent
+import android.media.MediaExtractor
 import android.net.Uri
-import android.provider.MediaStore
+import android.util.AtomicFile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import moe.rukamori.archivetune.db.MusicDatabase
 import moe.rukamori.archivetune.utils.isLocalMediaId
+import org.json.JSONException
 import org.json.JSONObject
+import timber.log.Timber
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
+import java.io.FileNotFoundException
+import java.io.IOException
 
 object LocalMediaUriHeals {
-    private const val FILE_NAME = "local_uri_heals.json"
-    private const val MAX_ENTRIES = 512
-
-    @Volatile
-    private var healed: Map<String, String> = emptyMap()
-
-    @Volatile
+    private const val FileName = "local_uri_heals.json"
+    private val bindings = MutableStateFlow<Map<String, String>>(emptyMap())
+    val sourceUris = bindings.asStateFlow()
+    private val mutationMutex = Mutex()
     private var loaded = false
 
-    private val persistenceMutex = Mutex()
+    fun uriFor(mediaId: String): String? = bindings.value[mediaId]
 
-    private val failedHealAttempts: MutableSet<String> = ConcurrentHashMap.newKeySet()
-
-    fun uriFor(mediaId: String): String? {
-        if (!mediaId.isLocalMediaId()) return null
-        if (!mediaId.startsWith("content://")) return null
-        return healed[mediaId]
-    }
-
-    fun record(mediaId: String, healedUri: String) {
-        if (mediaId == healedUri) return
-        if (healed[mediaId] == healedUri) return
-        healed = healed + (mediaId to healedUri)
-
-        if (healed.size > MAX_ENTRIES) {
-            healed = healed.entries.toList().takeLast(MAX_ENTRIES).associate { it.key to it.value }
-        }
-    }
-
-    fun markUnhealable(mediaId: String) {
-        failedHealAttempts.add(mediaId)
-    }
-
-    fun isKnownUnhealable(mediaId: String): Boolean = failedHealAttempts.contains(mediaId)
-
+    @Synchronized
     fun loadBlocking(context: Context) {
         if (loaded) return
+        val loadedBindings =
+            try {
+                val json = JSONObject(bindingFile(context).readFully().decodeToString())
+                json.keys().asSequence().mapNotNull { key ->
+                    json.optString(key)
+                        .takeIf { key.isLocalMediaId() && it.startsWith("content://") }
+                        ?.let { key to it }
+                }.toMap()
+            } catch (_: FileNotFoundException) {
+                emptyMap()
+            } catch (error: IOException) {
+                Timber.w(error, "Could not read local media replacements")
+                emptyMap()
+            } catch (error: JSONException) {
+                Timber.w(error, "Could not decode local media replacements")
+                emptyMap()
+            }
+        bindings.value = loadedBindings
         loaded = true
-        runCatching {
-            val file = File(context.filesDir, FILE_NAME)
-            if (!file.isFile) return
-            val json = JSONObject(file.readText())
-            val map = mutableMapOf<String, String>()
-            val keys = json.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                val value = json.optString(key)
-                if (value.startsWith("content://")) map[key] = value
-            }
-            healed = map
-        }
     }
 
-    suspend fun persist(context: Context) {
-        persistenceMutex.withLock {
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    val snapshot = healed
-                    val json = JSONObject()
-                    snapshot.forEach { (k, v) -> json.put(k, v) }
-                    File(context.filesDir, FILE_NAME).writeText(json.toString())
-                }
-            }
-        }
-    }
-
-    fun resolveReplacement(
+    suspend fun replace(
         context: Context,
-        staleMediaId: String,
-        title: String?,
-        durationMs: Long?,
-        artist: String?,
-    ): String? {
-        if (!staleMediaId.isLocalMediaId()) return null
-        val staleUri = Uri.parse(staleMediaId)
-
-        runCatching {
-            context.contentResolver.query(
-                staleUri,
-                arrayOf(MediaStore.Audio.Media._ID),
-                null,
-                null,
-                null,
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) return staleMediaId
-            }
-        }
-
-        if (title.isNullOrBlank()) return null
-
-        val projection = arrayOf(
-            MediaStore.Audio.Media._ID,
-            MediaStore.Audio.Media.TITLE,
-            MediaStore.Audio.Media.ARTIST,
-            MediaStore.Audio.Media.DURATION,
-        )
-        val candidates = mutableListOf<Pair<Long, Int>>()
-        runCatching {
-            context.contentResolver.query(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                null,
-                null,
-                null,
-            )?.use { cursor ->
-                val idIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                val titleIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-                val artistIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-                val durationIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-                while (cursor.moveToNext()) {
-                    val rowTitle = cursor.getString(titleIdx) ?: continue
-                    if (!rowTitle.equals(title, ignoreCase = true)) continue
-                    var score = 0
-                    val rowDuration = cursor.getLong(durationIdx)
-                    if (durationMs != null && durationMs > 0) {
-                        val delta = kotlin.math.abs(rowDuration - durationMs)
-                        if (delta > 3_000L) continue
-                        if (delta <= 250L) score += 2
+        database: MusicDatabase,
+        mediaId: String,
+        replacement: Uri,
+    ) {
+        withContext(Dispatchers.IO) {
+            mutationMutex.withLock {
+                loadBlocking(context)
+                require(mediaId.isLocalMediaId() && replacement.scheme == "content")
+                require(database.song(mediaId).first()?.song?.isLocal == true)
+                require(mediaId in LocalFileAvailability.missingIds.value)
+                val resolver = context.contentResolver
+                val alreadyGranted = resolver.persistedUriPermissions.any { it.uri == replacement && it.isReadPermission }
+                resolver.takePersistableUriPermission(replacement, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                try {
+                    val extractor = MediaExtractor()
+                    try {
+                        extractor.setDataSource(context, replacement, null)
+                        require((0 until extractor.trackCount).any {
+                            extractor.getTrackFormat(it).getString(android.media.MediaFormat.KEY_MIME)?.startsWith("audio/") == true
+                        })
+                    } finally {
+                        extractor.release()
                     }
-                    val rowArtist = cursor.getString(artistIdx)
-                    if (artist != null && rowArtist.equals(artist, ignoreCase = true)) score += 1
-                    candidates += cursor.getLong(idIdx) to score
+                    persistBindings(context, bindings.value + (mediaId to replacement.toString()))
+                    LocalFileAvailability.markAvailable(mediaId)
+                } catch (failure: Exception) {
+                    if (!alreadyGranted) {
+                        runCatching {
+                            resolver.releasePersistableUriPermission(replacement, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                    }
+                    throw failure
                 }
             }
         }
-        val best = candidates.maxByOrNull { it.second } ?: return null
-        return MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-            .buildUpon()
-            .appendPath(best.first.toString())
-            .toString()
     }
+
+    suspend fun remove(context: Context, database: MusicDatabase, mediaId: String) {
+        withContext(Dispatchers.IO) {
+            mutationMutex.withLock {
+                loadBlocking(context)
+                require(mediaId in LocalFileAvailability.missingIds.value)
+                if (bindings.value.containsKey(mediaId)) {
+                    persistBindings(context, bindings.value - mediaId)
+                }
+                database.removeLocalSong(mediaId)
+            }
+        }
+    }
+
+    private fun persistBindings(context: Context, updated: Map<String, String>) {
+        val file = bindingFile(context)
+        val output = file.startWrite()
+        try {
+            output.write(JSONObject(updated).toString().encodeToByteArray())
+            file.finishWrite(output)
+        } catch (failure: Exception) {
+            file.failWrite(output)
+            throw failure
+        }
+        bindings.value = updated
+    }
+
+    private fun bindingFile(context: Context) = AtomicFile(File(context.filesDir, FileName))
 }

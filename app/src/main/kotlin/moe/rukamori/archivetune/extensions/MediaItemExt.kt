@@ -17,7 +17,6 @@ import moe.rukamori.archivetune.innertube.models.EpisodeItem
 import moe.rukamori.archivetune.innertube.models.SongItem
 import moe.rukamori.archivetune.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_OMV
 import moe.rukamori.archivetune.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_UGC
-import moe.rukamori.archivetune.localmedia.LocalMediaUriHeals
 import moe.rukamori.archivetune.models.MediaMetadata
 import moe.rukamori.archivetune.models.toMediaMetadata
 import moe.rukamori.archivetune.ui.utils.YTThumbQuality
@@ -48,14 +47,11 @@ private fun MediaItem.Builder.setCacheKeyIfRemote(mediaId: String): MediaItem.Bu
     return this
 }
 
-private fun healedLocalUriFor(mediaId: String): String =
-    LocalMediaUriHeals.uriFor(mediaId) ?: mediaId
-
 fun Song.toMediaItem() =
     MediaItem
         .Builder()
         .setMediaId(song.id)
-        .setUri(healedLocalUriFor(song.id))
+        .setUri(song.id)
         .setCacheKeyIfRemote(song.id)
         .setMimeType(format?.mimeType?.takeIf { it.isNotBlank() })
         .setTag(toMediaMetadata())
@@ -117,7 +113,7 @@ fun MediaMetadata.toMediaItem() =
     MediaItem
         .Builder()
         .setMediaId(id)
-        .setUri(healedLocalUriFor(id))
+        .setUri(id)
         .setCacheKeyIfRemote(id)
         .setTag(this)
         .setMediaMetadata(

@@ -112,6 +112,7 @@ import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
 import moe.rukamori.archivetune.LocalPlayerConnection
 import moe.rukamori.archivetune.LocalStableSystemBarsTopPadding
 import moe.rukamori.archivetune.R
+import moe.rukamori.archivetune.localmedia.LocalFileAvailability
 import moe.rukamori.archivetune.constants.AppBarHeight
 import moe.rukamori.archivetune.constants.HistorySource
 import moe.rukamori.archivetune.constants.InnerTubeCookieKey
@@ -171,7 +172,12 @@ fun HistoryScreen(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
     val historySource by viewModel.historySource.collectAsStateWithLifecycle()
-    val events by viewModel.events.collectAsStateWithLifecycle()
+    val storedEvents by viewModel.events.collectAsStateWithLifecycle()
+    val missingIds by LocalFileAvailability.missingIds.collectAsStateWithLifecycle()
+    val events = remember(storedEvents, missingIds) {
+        storedEvents.mapValues { (_, entries) -> entries.filterNot { it.song.id in missingIds } }
+            .filterValues { it.isNotEmpty() }
+    }
     val isLoadingMoreEvents by viewModel.isLoadingMoreEvents.collectAsStateWithLifecycle()
     val canLoadMoreEvents by viewModel.canLoadMoreEvents.collectAsStateWithLifecycle()
     val remoteHistoryState by viewModel.remoteHistoryState.collectAsStateWithLifecycle()

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="music_available_files">Available</string>
+    <string name="music_missing_files">Missing Files</string>
+    <string name="music_missing_file_title">Local file missing</string>
+    <string name="music_missing_file_detail">Open Missing Files to replace or remove this track.</string>
+    <string name="music_missing_empty">No missing files.</string>
+    <string name="music_missing_permission">Allow audio access in Local Files settings to check your device library.</string>
+    <string name="music_missing_replace_file">Replace</string>
+    <string name="music_missing_remove_file">Remove</string>
+    <string name="music_missing_remove_confirmation">Remove “%1$s” from Music? This also removes its entries from playlists and listening history.</string>
+    <string name="music_missing_replace_failed">Music couldn’t link this file. Choose a readable file with an audio track.</string>
+    <string name="music_missing_remove_failed">Music couldn’t remove the entry. Try again.</string>
+</resources>
