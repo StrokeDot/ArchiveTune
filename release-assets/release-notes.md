@@ -1,0 +1,1 @@
+Fixes a case where Music could lose the file picker result while replacing a missing local track. The replacement can be shorter or longer than the original and keeps the track’s playlist entries and listening history.
