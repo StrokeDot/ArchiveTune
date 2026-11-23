@@ -244,6 +244,7 @@ fun LibraryMixScreen(
                         onOfflineClick = { navController.navigate("auto_playlist/downloaded") },
                         onCachedClick = { navController.navigate("cache_playlist/cached") },
                         onLocalFilesClick = { navController.navigate("local_songs") },
+                        onFileIntegrityClick = { navController.navigate(MissingLocalFilesRoute) },
                         onTop50Click = { navController.navigate("top_playlist/$topSize") },
                         onHistoryClick = { navController.navigate("history") },
                     )
@@ -304,6 +305,7 @@ private fun LibraryCategoryList(
     onOfflineClick: () -> Unit,
     onCachedClick: () -> Unit,
     onLocalFilesClick: () -> Unit,
+    onFileIntegrityClick: () -> Unit,
     onTop50Click: () -> Unit,
     onHistoryClick: () -> Unit,
 ) {
@@ -378,6 +380,14 @@ private fun LibraryCategoryList(
                         count = localFilesCount,
                         iconRes = R.drawable.snippet_folder,
                         onClick = onLocalFilesClick,
+                    ),
+                )
+                add(
+                    LibraryCategory(
+                        title = stringResource(R.string.music_file_integrity),
+                        count = 0,
+                        iconRes = R.drawable.security,
+                        onClick = onFileIntegrityClick,
                     ),
                 )
             }

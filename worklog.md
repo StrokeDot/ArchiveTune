@@ -5838,3 +5838,17 @@ Work Log:
 
 Stage Summary:
 - Build Music 18.0.6 for signed ARM64 release.
+
+---
+Task ID: Vinyl 8
+Agent: Codex
+
+Task: Show the outcome of each local file replacement in Library.
+
+Work Log:
+- Add File Integrity to Library and Local Files with missing, relinked, and unverified tracks.
+- Check local audio when File Integrity opens or the listener taps Check Files. Retain confirmed missing entries across launches and detect missing files on playback errors.
+- Keep the original entry visible after a replacement and protect its metadata during library rescans.
+
+Stage Summary:
+- Build Music 18.0.7 for signed ARM64 release.

@@ -115,7 +115,7 @@ class LocalSongScanner
                 val summary =
                     database.withTransaction {
                     val scannedIds = snapshot.tracks.map(LocalTrackRecord::id)
-                    val removedIds = excludedIds - scannedIds.toSet()
+                    val removedIds = excludedIds.filter { LocalMediaUriHeals.uriFor(it) == null }
                     removedIds.chunked(SqlBatchSize).forEach(::deleteSongsByIds)
 
                     val existingSongs = loadSongs(scannedIds)
@@ -186,6 +186,7 @@ class LocalSongScanner
                     }
 
                     snapshot.tracks.forEach { track ->
+                        if (LocalMediaUriHeals.uriFor(track.id) != null) return@forEach
                         val existingSong = existingSongs[track.id]?.song
                         val existingFormat = existingFormats[track.id]
                         upsert(

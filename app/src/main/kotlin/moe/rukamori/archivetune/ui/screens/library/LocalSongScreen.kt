@@ -76,6 +76,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -155,28 +156,30 @@ fun LocalSongScreen(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val menuState = LocalMenuState.current
+    var showMissingFiles by rememberSaveable { mutableStateOf(startInMissingFiles) }
+    var removalId by rememberSaveable { mutableStateOf<String?>(null) }
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
     val songs by viewModel.songs.collectAsStateWithLifecycle()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val missingIds by viewModel.missingIds.collectAsStateWithLifecycle()
+    val replacementSources by viewModel.replacementSources.collectAsStateWithLifecycle()
+    val integrity by viewModel.integrity.collectAsStateWithLifecycle()
     val fileAction by viewModel.fileAction.collectAsStateWithLifecycle()
-    var showMissingFiles by rememberSaveable { mutableStateOf(startInMissingFiles) }
-    var removalId by rememberSaveable { mutableStateOf<String?>(null) }
     val missingSongs = remember(songs, missingIds) { songs.filter { it.id in missingIds } }
-    fileAction.successRes?.let { message ->
+    val unverifiedSongs = remember(songs, missingIds, integrity.unverifiedIds) {
+        songs.filter { it.id in integrity.unverifiedIds && it.id !in missingIds }
+    }
+    val relinkedSongs = remember(songs, missingIds, integrity.unverifiedIds, replacementSources) {
+        songs.filter { it.id in replacementSources && it.id !in missingIds && it.id !in integrity.unverifiedIds }
+    }
+    fileAction.replacedTrackName?.let { title ->
         AlertDialog(
             onDismissRequest = viewModel::dismissFileActionSuccess,
-            title = { Text(stringResource(message)) },
-            text = { Text(stringResource(R.string.music_missing_replace_succeeded_detail)) },
+            title = { Text(stringResource(R.string.music_missing_replace_succeeded)) },
+            text = { Text(stringResource(R.string.music_missing_replace_succeeded_detail, title)) },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.dismissFileActionSuccess()
-                    showMissingFiles = false
-                }) { Text(stringResource(R.string.music_available_files)) }
-            },
-            dismissButton = {
                 TextButton(onClick = viewModel::dismissFileActionSuccess) { Text(stringResource(R.string.close)) }
             },
         )
@@ -281,6 +284,10 @@ fun LocalSongScreen(
         ) { granted ->
             hasStoragePermission = granted
         }
+
+    LaunchedEffect(showMissingFiles, hasStoragePermission) {
+        if (showMissingFiles) viewModel.checkFileIntegrity()
+    }
 
     val includedFolderPickerLauncher =
         rememberLauncherForActivityResult(
@@ -536,36 +543,79 @@ fun LocalSongScreen(
                             showMissingFiles = true
                             isSearchActive = false
                         },
-                        text = { Text(stringResource(R.string.music_missing_files)) },
+                        text = { Text(stringResource(R.string.music_file_integrity)) },
                     )
                 }
             }
             if (showMissingFiles) {
-                if (missingSongs.isEmpty()) {
-                    item(key = "missing_empty") {
-                        Text(
-                            text = stringResource(
-                                if (hasStoragePermission) R.string.music_missing_empty else R.string.music_missing_permission,
-                            ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
-                        )
+                val busy = integrity.isChecking || fileAction.activeId != null
+                item(key = "file_integrity_controls") {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (!hasStoragePermission) {
+                            Text(
+                                text = stringResource(R.string.music_missing_permission),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            TextButton(onClick = { permissionLauncher.launch(storagePermission) }) {
+                                Text(stringResource(R.string.music_integrity_allow_access))
+                            }
+                        }
+                        Button(onClick = viewModel::checkFileIntegrity, enabled = !busy) {
+                            Text(stringResource(R.string.music_integrity_check))
+                        }
+                        if (integrity.failed) {
+                            Text(stringResource(R.string.music_integrity_failed), color = MaterialTheme.colorScheme.error)
+                        }
                     }
                 }
-                if (fileAction.activeId != null) {
+                if (busy) {
                     item(key = "missing_file_action") {
                         androidx.compose.material3.LinearProgressIndicator(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
                         )
                     }
                 }
+                item(key = "missing_heading") {
+                    FileIntegrityHeading(R.string.music_missing_files)
+                }
+                if (missingSongs.isEmpty() && integrity.hasChecked && !integrity.isChecking && !integrity.failed) {
+                    item(key = "missing_empty") {
+                        Text(
+                            text = stringResource(R.string.music_missing_empty),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                        )
+                    }
+                }
                 itemsIndexed(missingSongs, key = { _, song -> song.id }) { _, song ->
                     MissingLocalFileRow(
                         song = song,
-                        enabled = fileAction.activeId == null,
+                        enabled = !busy,
                         onReplace = { onReplaceLocalFile(song.id) },
                         onRemove = { removalId = song.id },
                     )
+                }
+                if (relinkedSongs.isNotEmpty()) {
+                    item(key = "relinked_heading") { FileIntegrityHeading(R.string.music_integrity_relinked) }
+                    itemsIndexed(relinkedSongs, key = { _, song -> song.id }) { _, song ->
+                        ListItem(
+                            headlineContent = { Text(song.song.title) },
+                            leadingContent = { Icon(painterResource(R.drawable.done), contentDescription = null) },
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
+                }
+                if (unverifiedSongs.isNotEmpty()) {
+                    item(key = "unverified_heading") { FileIntegrityHeading(R.string.music_integrity_unverified) }
+                    itemsIndexed(unverifiedSongs, key = { _, song -> song.id }) { _, song ->
+                        ListItem(
+                            headlineContent = { Text(song.song.title) },
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
                 }
                 return@LazyColumn
             }
@@ -1522,6 +1572,15 @@ private enum class LocalSongSortType {
 }
 
 const val MissingLocalFilesRoute = "local_missing_files"
+
+@Composable
+private fun FileIntegrityHeading(title: Int) {
+    Text(
+        text = stringResource(title),
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.padding(horizontal = 24.dp),
+    )
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

@@ -53,11 +53,16 @@ class LocalSongsViewModel
             )
 
         val missingIds = LocalFileAvailability.missingIds
+        val replacementSources = LocalMediaUriHeals.sourceUris
+        private val _integrity = MutableStateFlow(LocalFileIntegrityState())
+        val integrity = _integrity.asStateFlow()
         private val _fileAction = MutableStateFlow(LocalFileActionState())
         val fileAction = _fileAction.asStateFlow()
 
-        fun beginReplacement(id: String) {
+        fun beginReplacement(id: String): Boolean {
+            if (_fileAction.value.activeId != null || savedState.get<String>("replacementTrackId") != null) return false
             savedState["replacementTrackId"] = id
+            return true
         }
 
         fun onReplacementPickerUnavailable() {
@@ -74,18 +79,19 @@ class LocalSongsViewModel
                 _fileAction.value = LocalFileActionState(errorRes = R.string.music_missing_picker_failed)
                 return
             }
-            updateMissingFile(id, R.string.music_missing_replace_failed, R.string.music_missing_replace_succeeded) {
+            updateMissingFile(id, R.string.music_missing_replace_failed) {
                 LocalMediaUriHeals.replace(context, database, id, uri)
             }
         }
 
         fun dismissFileActionSuccess() {
-            _fileAction.value = _fileAction.value.copy(successRes = null)
+            _fileAction.value = _fileAction.value.copy(replacedTrackName = null)
         }
 
         fun removeFile(id: String) {
             updateMissingFile(id, R.string.music_missing_remove_failed) {
                 LocalMediaUriHeals.remove(context, database, id)
+                null
             }
         }
 
@@ -96,15 +102,17 @@ class LocalSongsViewModel
         private fun updateMissingFile(
             id: String,
             errorRes: Int,
-            successRes: Int? = null,
-            update: suspend () -> Unit,
+            update: suspend () -> String?,
         ) {
             if (_fileAction.value.activeId != null) return
             _fileAction.value = LocalFileActionState(activeId = id)
             viewModelScope.launch {
                 try {
-                    update()
-                    _fileAction.value = LocalFileActionState(successRes = successRes)
+                    val replacedTrackName = update()
+                    if (replacedTrackName != null) {
+                        _integrity.value = _integrity.value.copy(unverifiedIds = _integrity.value.unverifiedIds - id)
+                    }
+                    _fileAction.value = LocalFileActionState(replacedTrackName = replacedTrackName)
                 } catch (_: TimeoutCancellationException) {
                     _fileAction.value = LocalFileActionState(errorRes = errorRes)
                 } catch (error: CancellationException) {
@@ -112,6 +120,22 @@ class LocalSongsViewModel
                 } catch (error: Exception) {
                     reportException(error)
                     _fileAction.value = LocalFileActionState(errorRes = errorRes)
+                }
+            }
+        }
+
+        fun checkFileIntegrity() {
+            if (_integrity.value.isChecking || _fileAction.value.activeId != null) return
+            _integrity.value = _integrity.value.copy(isChecking = true, failed = false)
+            viewModelScope.launch {
+                try {
+                    val unverifiedIds = LocalFileAvailability.checkLibrary(context, database)
+                    _integrity.value = LocalFileIntegrityState(hasChecked = true, unverifiedIds = unverifiedIds)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    reportException(error)
+                    _integrity.value = _integrity.value.copy(isChecking = false, failed = true)
                 }
             }
         }
@@ -143,7 +167,14 @@ class LocalSongsViewModel
 data class LocalFileActionState(
     val activeId: String? = null,
     val errorRes: Int? = null,
-    val successRes: Int? = null,
+    val replacedTrackName: String? = null,
+)
+
+data class LocalFileIntegrityState(
+    val isChecking: Boolean = false,
+    val hasChecked: Boolean = false,
+    val unverifiedIds: Set<String> = emptySet(),
+    val failed: Boolean = false,
 )
 
 data class LocalSongsScanState(

@@ -3015,7 +3015,7 @@ fun BottomSheetPlayer(
                     dismissPlaybackError()
                     navController.navigate(MissingLocalFilesRoute) { launchSingleTop = true }
                 }) {
-                    Text(stringResource(R.string.music_missing_files))
+                    Text(stringResource(R.string.music_file_integrity))
                 }
             },
             dismissButton = {

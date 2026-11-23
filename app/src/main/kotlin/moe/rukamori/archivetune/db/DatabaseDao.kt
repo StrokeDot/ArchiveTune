@@ -731,9 +731,6 @@ interface DatabaseDao {
     @Query("SELECT id FROM song WHERE isLocal = 1")
     suspend fun localSongIds(): List<String>
 
-    @Query("SELECT id FROM song WHERE isLocal = 1 ORDER BY id")
-    fun observeLocalSongIds(): Flow<List<String>>
-
     @Query("DELETE FROM song WHERE id = :id AND isLocal = 1")
     suspend fun removeLocalSong(id: String)
 

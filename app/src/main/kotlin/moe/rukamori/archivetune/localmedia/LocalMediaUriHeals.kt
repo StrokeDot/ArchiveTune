@@ -78,12 +78,12 @@ object LocalMediaUriHeals {
         database: MusicDatabase,
         mediaId: String,
         replacement: Uri,
-    ) {
+    ): String =
         withContext(Dispatchers.IO) {
             mutationMutex.withLock {
                 loadBlocking(context)
                 require(mediaId.isLocalMediaId() && replacement.scheme == "content")
-                require(database.song(mediaId).first()?.song?.isLocal == true)
+                val track = requireNotNull(database.song(mediaId).first()?.song?.takeIf { it.isLocal })
                 val resolver = context.contentResolver
                 val previousBindings = bindings.value
                 val previousSource = previousBindings[mediaId]
@@ -168,7 +168,7 @@ object LocalMediaUriHeals {
                             )
                             persistBindings(context, previousBindings + (mediaId to source.toString()))
                         }
-                        LocalFileAvailability.markAvailable(mediaId)
+                        LocalFileAvailability.markAvailable(context, mediaId)
                         if (previousSource != source.toString()) {
                             runCatching { deleteManagedCopy(context, previousSource) }
                         }
@@ -183,9 +183,9 @@ object LocalMediaUriHeals {
                     }
                     throw failure
                 }
+                track.title
             }
         }
-    }
 
     suspend fun remove(context: Context, database: MusicDatabase, mediaId: String) {
         withContext(Dispatchers.IO) {
@@ -197,6 +197,7 @@ object LocalMediaUriHeals {
                     persistBindings(context, bindings.value - mediaId)
                 }
                 database.removeLocalSong(mediaId)
+                LocalFileAvailability.markAvailable(context, mediaId)
                 deleteManagedCopy(context, previousSource)
             }
         }

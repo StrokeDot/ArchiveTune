@@ -10,7 +10,6 @@ package moe.rukamori.archivetune.localmedia
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.database.ContentObserver
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -18,17 +17,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.media3.common.PlaybackException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import moe.rukamori.archivetune.db.MusicDatabase
 import java.io.FileNotFoundException
@@ -37,74 +28,77 @@ import java.io.IOException
 object LocalFileAvailability {
     private val unavailable = MutableStateFlow<Set<String>>(emptySet())
     val missingIds = unavailable.asStateFlow()
+    private var loaded = false
 
-    @OptIn(FlowPreview::class)
-    suspend fun observe(context: Context, database: MusicDatabase) {
+    @Synchronized
+    fun loadBlocking(context: Context) {
+        if (loaded) return
+        unavailable.value = preferences(context).getStringSet("missing_ids", emptySet()).orEmpty().toSet()
+        loaded = true
+    }
+
+    suspend fun checkLibrary(context: Context, database: MusicDatabase): Set<String> =
         withContext(Dispatchers.IO) {
+            loadBlocking(context)
             LocalMediaUriHeals.loadBlocking(context)
-            combine(
-                database.observeLocalSongIds().distinctUntilChanged(),
-                mediaChanges(context),
-                LocalMediaUriHeals.sourceUris,
-            ) { ids, _, sources -> ids to sources }
-                .debounce(400)
-                .collectLatest { (ids, sources) ->
-                    val previous = unavailable.value
-                    val tracked = ids.toHashSet()
-                    val missing = buildSet {
-                        for (id in ids) {
-                            ensureActive()
-                            when (checkFile(context, (sources[id] ?: id).toUri())) {
-                                FileStatus.Missing -> add(id)
-                                FileStatus.Unknown -> if (id in previous) add(id)
-                                FileStatus.Available -> Unit
+            val sources = LocalMediaUriHeals.sourceUris.value
+            val previous = unavailable.value
+            val ids = database.localSongIds().toHashSet()
+            val results = ids.associateWith { id ->
+                ensureActive()
+                checkFile(context, (sources[id] ?: id).toUri())
+            }
+            val unverified = mutableSetOf<String>()
+            updateMissing(context) { current ->
+                val currentSources = LocalMediaUriHeals.sourceUris.value
+                val next = (current - (previous - ids)).toMutableSet()
+                results.forEach { (id, status) ->
+                    if (sources[id] == currentSources[id]) {
+                        when (status) {
+                            FileStatus.Missing -> next.add(id)
+                            FileStatus.Available -> {
+                                if (id in previous) next.remove(id)
                             }
-                        }
-                    }
-                    if (sources === LocalMediaUriHeals.sourceUris.value) {
-                        unavailable.update { current ->
-                            missing + (current - tracked) + (current - previous)
+                            FileStatus.Unknown -> unverified.add(id)
                         }
                     }
                 }
+                next
+            }
+            unverified
         }
-    }
 
     suspend fun checkAfterPlaybackError(context: Context, id: String) {
         withContext(Dispatchers.IO) {
+            LocalMediaUriHeals.loadBlocking(context)
             val source = LocalMediaUriHeals.uriFor(id) ?: id
             if (checkFile(context, source.toUri()) == FileStatus.Missing) {
-                unavailable.update { current ->
+                updateMissing(context) { current ->
                     if ((LocalMediaUriHeals.uriFor(id) ?: id) == source) current + id else current
                 }
             }
         }
     }
 
-    fun markAvailable(id: String) {
-        unavailable.update { it - id }
-    }
+    fun markAvailable(context: Context, id: String) = updateMissing(context) { it - id }
 
     fun canPruneFromScan(context: Context, id: String): Boolean =
         LocalMediaUriHeals.uriFor(id) == null &&
             isIndexedAudio(id.toUri()) &&
             checkFile(context, id.toUri()) == FileStatus.Available
 
-    private fun mediaChanges(context: Context) = callbackFlow<Unit> {
-        val resolver = context.contentResolver
-        val observer =
-            object : ContentObserver(null) {
-                override fun onChange(selfChange: Boolean) {
-                    trySend(Unit)
-                }
-            }
-        val registered =
-            runCatching {
-                resolver.registerContentObserver(MediaStore.AUTHORITY_URI, true, observer)
-            }.isSuccess
-        trySend(Unit)
-        awaitClose { if (registered) resolver.unregisterContentObserver(observer) }
+    @Synchronized
+    private fun updateMissing(context: Context, update: (Set<String>) -> Set<String>) {
+        loadBlocking(context)
+        val current = unavailable.value
+        val next = update(current)
+        if (next != current) {
+            preferences(context).edit().putStringSet("missing_ids", next).apply()
+            unavailable.value = next
+        }
     }
+
+    private fun preferences(context: Context) = context.getSharedPreferences("local_file_integrity", Context.MODE_PRIVATE)
 
     private fun isIndexedAudio(uri: Uri): Boolean =
         uri.authority == MediaStore.AUTHORITY && uri.pathSegments.getOrNull(1) == "audio"
