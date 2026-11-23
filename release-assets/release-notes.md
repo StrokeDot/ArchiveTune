@@ -1,0 +1,1 @@
+Open Library → File Integrity to see missing and relinked tracks and check local file access on demand. Replacing a missing file keeps the original track name, listening history, and playlist entries. Replacement audio can have a different duration or a different supported encoding.
