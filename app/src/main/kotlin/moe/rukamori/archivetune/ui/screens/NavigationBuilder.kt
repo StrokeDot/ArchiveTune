@@ -124,6 +124,7 @@ import moe.rukamori.archivetune.ui.screens.settings.StorageSettings
 import moe.rukamori.archivetune.ui.screens.settings.DownloadsSettings
 import moe.rukamori.archivetune.ui.screens.settings.ThemeCreatorScreen
 import moe.rukamori.archivetune.ui.screens.settings.UpdateScreen
+import moe.rukamori.archivetune.viewmodels.LocalSongsViewModel
 import moe.rukamori.archivetune.viewmodels.OnlineSearchSort
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -131,6 +132,8 @@ fun NavGraphBuilder.navigationBuilder(
     navController: NavHostController,
     scrollBehavior: TopAppBarScrollBehavior,
     latestVersionName: () -> String,
+    localSongsViewModel: LocalSongsViewModel,
+    onReplaceLocalFile: (String) -> Unit,
     disableAnimations: Boolean = false,
     onClearUpdateBadge: () -> Unit = {},
     onSearchQuery: (String) -> Unit = {},
@@ -178,10 +181,10 @@ fun NavGraphBuilder.navigationBuilder(
         )
     }
     composable("local_songs") {
-        LocalSongScreen(navController)
+        LocalSongScreen(navController, localSongsViewModel, onReplaceLocalFile)
     }
     composable(MissingLocalFilesRoute) {
-        LocalSongScreen(navController, startInMissingFiles = true)
+        LocalSongScreen(navController, localSongsViewModel, onReplaceLocalFile, startInMissingFiles = true)
     }
     composable("history") {
         HistoryScreen(navController)

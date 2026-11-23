@@ -189,6 +189,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.datastore.preferences.core.edit
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import moe.rukamori.archivetune.localmedia.LocalFileAvailability
@@ -387,6 +388,7 @@ import moe.rukamori.archivetune.voicesearch.VoiceSearchState
 import moe.rukamori.archivetune.viewmodels.BackupCategory
 import moe.rukamori.archivetune.viewmodels.BackupRestoreViewModel
 import moe.rukamori.archivetune.viewmodels.HomeViewModel
+import moe.rukamori.archivetune.viewmodels.LocalSongsViewModel
 import moe.rukamori.archivetune.viewmodels.NetworkBannerViewModel
 import moe.rukamori.archivetune.viewmodels.NewsViewModel
 import moe.rukamori.archivetune.viewmodels.OnlineSearchSort
@@ -411,6 +413,29 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var listenTogetherManager: ListenTogetherManager
+
+    private val localSongsViewModel by lazy {
+        ViewModelProvider(this)[LocalSongsViewModel::class.java]
+    }
+    private val localReplacementPicker =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            localSongsViewModel.onReplacementResult(result.resultCode, result.data)
+        }
+
+    private fun chooseLocalReplacement(trackId: String) {
+        localSongsViewModel.beginReplacement(trackId)
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        }
+        try {
+            localReplacementPicker.launch(intent)
+        } catch (error: ActivityNotFoundException) {
+            reportException(error)
+            localSongsViewModel.onReplacementPickerUnavailable()
+        }
+    }
 
     private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
@@ -3504,7 +3529,9 @@ class MainActivity : ComponentActivity() {
                                         navController,
                                         topAppBarScrollBehavior,
                                         { latestVersionName },
-                                        disableAnimations,
+                                        localSongsViewModel = localSongsViewModel,
+                                        onReplaceLocalFile = ::chooseLocalReplacement,
+                                        disableAnimations = disableAnimations,
                                         onClearUpdateBadge = { latestVersionName = BuildConfig.VERSION_NAME },
                                         onSearchQuery = onSearch,
                                         onVoiceSearch = launchVoiceSearch,

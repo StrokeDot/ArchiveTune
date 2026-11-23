@@ -8,7 +8,6 @@
 package moe.rukamori.archivetune.ui.screens.library
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -98,7 +97,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.core.content.ContextCompat
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.kyant.backdrop.Backdrop
 import moe.rukamori.archivetune.LocalPlayerAwareWindowInsets
@@ -150,8 +148,9 @@ import androidx.compose.runtime.setValue
 @Composable
 fun LocalSongScreen(
     navController: NavController,
+    viewModel: LocalSongsViewModel,
+    onReplaceLocalFile: (String) -> Unit,
     startInMissingFiles: Boolean = false,
-    viewModel: LocalSongsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -166,11 +165,6 @@ fun LocalSongScreen(
     var showMissingFiles by rememberSaveable { mutableStateOf(startInMissingFiles) }
     var removalId by rememberSaveable { mutableStateOf<String?>(null) }
     val missingSongs = remember(songs, missingIds) { songs.filter { it.id in missingIds } }
-    val replacementPicker =
-        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            viewModel.onReplacementResult(result.resultCode, result.data)
-        }
-
     fileAction.successRes?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::dismissFileActionSuccess,
@@ -569,14 +563,7 @@ fun LocalSongScreen(
                     MissingLocalFileRow(
                         song = song,
                         enabled = fileAction.activeId == null,
-                        onReplace = {
-                            viewModel.beginReplacement(song.id)
-                            replacementPicker.launch(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                                addCategory(Intent.CATEGORY_OPENABLE)
-                                type = "*/*"
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-                            })
-                        },
+                        onReplace = { onReplaceLocalFile(song.id) },
                         onRemove = { removalId = song.id },
                     )
                 }

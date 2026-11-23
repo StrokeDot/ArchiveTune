@@ -60,6 +60,11 @@ class LocalSongsViewModel
             savedState["replacementTrackId"] = id
         }
 
+        fun onReplacementPickerUnavailable() {
+            savedState.remove<String>("replacementTrackId")
+            _fileAction.value = LocalFileActionState(errorRes = R.string.music_missing_picker_failed)
+        }
+
         fun onReplacementResult(resultCode: Int, data: Intent?) {
             val id = savedState.remove<String>("replacementTrackId")
             if (resultCode != Activity.RESULT_OK) return

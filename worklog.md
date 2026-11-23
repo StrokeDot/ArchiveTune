@@ -5824,3 +5824,17 @@ Work Log:
 
 Stage Summary:
 - Build Music 18.0.5 for signed ARM64 release.
+
+---
+Task ID: Vinyl 7
+Agent: Codex
+
+Task: Keep local file replacement working while Android's file picker covers Music.
+
+Work Log:
+- Register the replacement picker with MainActivity and share its ViewModel with both local-file routes.
+- Keep the selected track ID in saved state and receive the returned URI independently of the playback service connection.
+- Report when the system picker cannot open.
+
+Stage Summary:
+- Build Music 18.0.6 for signed ARM64 release.
