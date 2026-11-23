@@ -1,0 +1,50 @@
+name: Publish signed Music 18.0.5
+
+on:
+  push:
+    branches: [release/music-18.0.5]
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: music-release-18.0.5
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'StrokeDot/ArchiveTune'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_COMMIT: e186bac189a132634578d6eba393c8db9a5c518c
+      SIGNED_SHA256: 2b54b280a2729aff489dbb90fa8e42743e2b2412f0b2207526675c8065874ac8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: release-assets
+      - name: Retrieve verified Android build
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/14782343440/zip" > unsigned.zip
+          echo 'e71f814e80de03592733d94ac8f56f38045f837ade0f3df5a3a45de454b6f28e  unsigned.zip' | sha256sum -c -
+      - name: Reassemble and verify signed APK
+        run: python release-assets/assemble.py
+      - name: Publish verified release
+        run: |
+          set -euo pipefail
+          tag=v18.0.5
+          apk=app-gms-mobile-arm64-release.apk
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$tag" "$apk" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title 'Music 18.0.5' --notes-file release-assets/release-notes.md --draft
+          fi
+          existing=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease,targetCommitish)
+          test "$(jq -r .targetCommitish <<< "$existing")" = "$SOURCE_COMMIT"
+          test "$(jq -r .isPrerelease <<< "$existing")" = false
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$apk" --output downloaded.apk
+          echo "$SIGNED_SHA256  downloaded.apk" | sha256sum -c -
+          if [[ $(jq -r .isDraft <<< "$existing") == true ]]; then
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          fi
